@@ -1,0 +1,17 @@
+includes:
+    - ./vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+        - database/migrations
+        - database/seeders
+        - routes
+    level: 5
+
+    excludePaths:
+        - tests/*
+        - vendor/*
+
+    checkMissingTypehints: true
+    checkUninitializedProperties: true

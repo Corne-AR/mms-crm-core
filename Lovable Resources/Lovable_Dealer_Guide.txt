@@ -1,0 +1,29 @@
+Lovable Knowledge: Dealer Dashboard
+-----------------------------------
+
+Purpose:
+Provide limited, read-only insights to dealers about their customers, quotes, and product usage.
+
+Target Users:
+- Key Dealers
+- Sub-Dealers
+
+Dashboard Elements:
+- KPIs: “My Customers”, “My Quotes This Month”
+- Quote status (dealer-specific)
+- Quote trends (only their data)
+- Popular products (top quoted items)
+- Pending invoices summary
+
+Style Guide:
+- Same brand colors and font
+- Hide sensitive system-wide metrics
+- Dealer logo (optional) in header
+
+Naming Conventions:
+- Title: “Dealer Insights - {dealer_name}”
+- Use their company name dynamically if available
+
+Data Filtering:
+- Only show records where dealer_id = Auth::user()->dealer_id
+- No access to system-wide totals

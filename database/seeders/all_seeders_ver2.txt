@@ -1,0 +1,690 @@
+# DatabaseSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+
+class DatabaseSeeder extends Seeder
+{
+    public function run(): void
+    {
+        // Call your real seeders:
+
+        $this->call([
+            UsersSeeder::class,
+            PaymentMethodsSeeder::class,
+            // Add more seeders here as needed
+        ]);
+    }
+}
+
+# CustomersSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use App\Models\Customer;
+
+class CustomersSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $customers = [
+            [
+                'company_name' => 'Acme Corporation',
+                'contact_person' => 'John Doe',
+                'email' => 'john.doe@acme.com',
+                'phone' => '+1234567890',
+                'vat_number' => 'VAT123456',
+                'vendor_number' => 'VENDOR001',
+                'catagory' => 'Retail', // Assuming typo should be "category" — but keeping as per your DB field
+                'type' => 'Business',
+                'language' => 'English',
+                'currency' => 'USD',
+                'address' => '123 Main Street, Springfield, USA',
+            ],
+            [
+                'company_name' => 'Globex Ltd',
+                'contact_person' => 'Jane Smith',
+                'email' => 'jane.smith@globex.com',
+                'phone' => '+9876543210',
+                'vat_number' => 'VAT654321',
+                'vendor_number' => 'VENDOR002',
+                'catagory' => 'Wholesale',
+                'type' => 'Business',
+                'language' => 'English',
+                'currency' => 'EUR',
+                'address' => '456 Market Road, Berlin, Germany',
+            ],
+            // Add more customers as needed
+        ];
+
+        foreach ($customers as $data) {
+            Customer::create($data);
+        }
+    }
+}
+
+
+# InvoiceNumberSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class InvoiceNumberSeeder extends Seeder
+{
+    public function run(): void
+    {
+        DB::table('settings')->insertOrIgnore([
+            'key' => 'invoice_next_number',
+            'value' => '5001', // Start at 5001 — you can adjust 🚀
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+}
+
+
+# KitSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class KitSeeder extends Seeder
+{
+    public function run(): void
+    {
+        DB::table('kits')->insert([
+
+            [
+                'kit_code' => '8 006 010 047',
+                'kit_name' => 'NX510 SE Package (International)',
+                'unit' => 'Kit',
+                'price' => 87750.00,
+                'currency' => 'ZAR',
+                'category' => 'Agriculture',
+                'type' => 'Autosteer',
+                'special_notes' => 'Include UHF Radio Rx - can use NTRIP, Add iBaseAG',
+                'kit_contents' => '
+                    <ul>
+                        <li>PA-3UB-FAYWY Receiver</li>
+                        <li>GASensor Angle Sensor Kit</li>
+                        <li>CB-H10 Tablet Console</li>
+                        <li>CES-T5.1 Motor Steering Wheel</li>
+                        <li>FA3A220 Camera</li>
+                        <li>AgNav3.0 Software (Android)</li>
+                        <li>Radio Antenna (magnetic mount)</li>
+                        <li>GASensor Angle Sensor Cable 3.0</li>
+                        <li>Integrated Main Cable V510-A</li>
+                        <li>Camera Cable</li>
+                        <li>2x PA-3 Mounting Bracket Kit</li>
+                        <li>Steering Wheel Mount (Standard)</li>
+                        <li>T Mount Kit (A)</li>
+                        <li>T Mount Kit (B)</li>
+                        <li>Ball Holder</li>
+                        <li>Double Socket Arm</li>
+                        <li>Sleeve for Motor Mounting</li>
+                    </ul>
+                ',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+
+            [
+                'kit_code' => '8 006 010 162',
+                'kit_name' => 'NX612 Package (International)',
+                'unit' => 'Kit',
+                'price' => 97500.00,
+                'currency' => 'ZAR',
+                'category' => 'Agriculture',
+                'type' => 'Autosteer',
+                'special_notes' => 'L-Band (SkyTrix) - 12 month included',
+                'kit_contents' => '
+                    <ul>
+                        <li>NX612 Package (International)</li>
+                        <li>PA-5AH-GXY00 Receiver</li>
+                        <li>2x A-1 Mounting Bracket Kit</li>
+                        <li>CB-H12 Tablet Console</li>
+                        <li>CES-T6 Motor Steering Wheel</li>
+                        <li>Steering Knob</li>
+                        <li>MC011B Camera</li>
+                        <li>Integrated Main Cable</li>
+                        <li>Steering Wheel Mount (Standard)</li>
+                        <li>T Mount Kit (A)</li>
+                        <li>T Mount Kit (B)</li>
+                        <li>Ball Holder</li>
+                        <li>Double Socket Arm</li>
+                        <li>QCA0050 Magnetic Base for Radio Antenna (50cm)</li>
+                        <li>QCA0051 Radio Antenna</li>
+                        <li>1 Year SkyTrix Subscription</li>
+                    </ul>
+                ',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+
+            [
+                'kit_code' => '8 001 010 338',
+                'kit_name' => 'iBase Ag Base Station',
+                'unit' => 'Kit',
+                'price' => 48067.50,
+                'currency' => 'ZAR',
+                'category' => 'Agriculture',
+                'type' => 'Base',
+                'special_notes' => 'only uses CHC protocol, not for RTK, excludes Tripod',
+                'kit_contents' => '
+                    <ul>
+                        <li>iBase GNSS Receiver</li>
+                        <li>Pole Mounting</li>
+                        <li>External Power Cable</li>
+                        <li>Extension Pole (30cm)</li>
+                        <li>Transport Hard Case</li>
+                    </ul>
+                ',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+
+        ]);
+    }
+}
+
+
+# PaymentMethodsSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class PaymentMethodsSeeder extends Seeder
+{
+    public function run(): void
+    {
+        DB::table('payment_methods')->insert([
+            [
+                'method_name' => 'Bank Transfer',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'method_name' => 'Cash',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'method_name' => 'Credit Card',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'method_name' => 'PayPal',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+    }
+}
+
+
+
+# PermissionsSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class PermissionsSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $permissions = [
+            'view_quotes',
+            'create_quotes',
+            'edit_quotes',
+            'delete_quotes',
+            'convert_quotes_to_invoices',
+
+            'view_invoices',
+            'create_invoices',
+            'edit_invoices',
+            'delete_invoices',
+
+            'view_customers',
+            'create_customers',
+            'edit_customers',
+            'delete_customers',
+
+            'view_products',
+            'create_products',
+            'edit_products',
+            'delete_products',
+
+            'view_kits',
+            'create_kits',
+            'edit_kits',
+            'delete_kits',
+
+            'manage_terms',
+            'manage_settings',
+            'manage_users',
+            'view_activity_logs',
+            'view_email_logs',
+        ];
+
+        foreach ($permissions as $permission) {
+            DB::table('permissions')->insert([
+                'name' => $permission,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+}
+
+
+# ProductsSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use App\Models\Product;
+
+class ProductsSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $products = [
+            [
+                'part_number' => '8 000 900 108',
+                'description' => 'NX510 SE GNSS Receiver with UHF Radio (Rx / Tx)',
+                'price' => 33200.00,
+                'currency' => 'ZAR',
+                'vat_applicable' => true,
+                'discount_applicable' => true,
+                'bulk_discount_applicable' => true,
+                'shipping_fee_applicable' => true,
+                'list_contents' => '<ul><li>PA-3UB-FAYWY GNSS Receiver</li><li>Mounting Kit</li><li>User Manual</li></ul>',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'part_number' => '8 000 900 109',
+                'description' => 'GASensor Angle Sensor Kit',
+                'price' => 8300.00,
+                'currency' => 'ZAR',
+                'vat_applicable' => true,
+                'discount_applicable' => false,
+                'bulk_discount_applicable' => false,
+                'shipping_fee_applicable' => true,
+                'list_contents' => '<ul><li>GASensor Module</li><li>Cable</li><li>Mounting Accessories</li></ul>',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'part_number' => '8 000 900 129',
+                'description' => 'CB-H10 Tablet Console',
+                'price' => 14800.00,
+                'currency' => 'ZAR',
+                'vat_applicable' => true,
+                'discount_applicable' => true,
+                'bulk_discount_applicable' => false,
+                'shipping_fee_applicable' => true,
+                'list_contents' => '<ul><li>CB-H10 Tablet</li><li>Mounting Kit</li><li>Charger</li></ul>',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'part_number' => '8 001 000 308',
+                'description' => 'CES-T5.1 Motor Steering Wheel',
+                'price' => 27500.00,
+                'currency' => 'ZAR',
+                'vat_applicable' => true,
+                'discount_applicable' => true,
+                'bulk_discount_applicable' => true,
+                'shipping_fee_applicable' => true,
+                'list_contents' => '<ul><li>Motor</li><li>Steering Wheel Mount</li><li>Controller Cable</li></ul>',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'part_number' => '8 001 000 025',
+                'description' => 'FA3A220 Camera',
+                'price' => 3500.00,
+                'currency' => 'ZAR',
+                'vat_applicable' => true,
+                'discount_applicable' => false,
+                'bulk_discount_applicable' => false,
+                'shipping_fee_applicable' => true,
+                'list_contents' => '<ul><li>FA3A220 Camera</li><li>Power Cable</li><li>Bracket</li></ul>',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+                   // ADD MORE PRODUCTS HERE using your Excel!
+        ];
+
+        foreach ($products as $product) {
+            Product::create($product);
+        }
+    }
+}
+
+
+# QuoteNumberSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class QuoteNumberSeeder extends Seeder
+{
+    public function run(): void
+    {
+        DB::table('settings')->insertOrIgnore([
+            'key' => 'quote_next_number',
+            'value' => '1001', // Start at 1001 — you can change this 🚀
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+}
+
+
+# RolesSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class RolesSeeder extends Seeder
+{
+    public function run(): void
+    {
+        DB::table('roles')->insert([
+            ['name' => 'Master Admin', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Key Dealer', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Sub-Dealer', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+    }
+}
+
+
+# SettingsSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class SettingsSeeder extends Seeder
+{
+    public function run(): void
+    {
+        DB::table('settings')->insert([
+            [
+                'key' => 'site_name',
+                'value' => 'MMS Design CRM',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'key' => 'default_currency',
+                'value' => 'ZAR',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'key' => 'default_vat_percentage',
+                'value' => '15',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'key' => 'quote_prefix',
+                'value' => 'Q-',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'key' => 'invoice_prefix',
+                'value' => 'INV-',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'key' => 'default_terms_id',
+                'value' => '1', // will match TermsSeeder 🚀
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'key' => 'default_email_from',
+                'value' => 'crm@mmsdesign.co.za',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+    }
+}
+
+
+# SubDealersSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use App\Models\User;
+use App\Models\SubDealerRegion; // this is your sub_dealer_regions model
+
+class SubDealersSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $subDealers = [
+            [
+                'name' => 'SubDealer 1',
+                'email' => 'subdealer1@example.com',
+                'password' => bcrypt('password'), // add password!
+                'phone' => '1234567890',
+                'address' => '123 Main St, City, Country',
+                'banking_details' => 'Bank XYZ, Account 123456789',
+                'vat_number' => 'VAT123456',
+                'logo_path' => 'logos/subdealer1.png',
+                'region_name' => 'Region A',
+            ],
+            [
+                'name' => 'SubDealer 2',
+                'email' => 'subdealer2@example.com',
+                'password' => bcrypt('password'), // add password!
+                'phone' => '9876543210',
+                'address' => '456 Another St, City, Country',
+                'banking_details' => 'Bank ABC, Account 654321987',
+                'vat_number' => 'VAT654321',
+                'logo_path' => 'logos/subdealer2.png',
+                'region_name' => 'Region B',
+            ],
+        ];
+
+        foreach ($subDealers as $dealer) {
+            $region = SubDealerRegion::where('name', $dealer['region_name'])->first();
+
+            User::create([
+                'name' => $dealer['name'],
+                'email' => $dealer['email'],
+                'password' => $dealer['password'],
+                'phone' => $dealer['phone'],
+                'address' => $dealer['address'],
+                'banking_details' => $dealer['banking_details'],
+                'vat_number' => $dealer['vat_number'],
+                'logo_path' => $dealer['logo_path'],
+                'role' => 'sub_dealer',
+                'region_id' => $region ? $region->id : null, // safe fallback
+            ]);
+        }
+    }
+}
+
+
+
+# SystemSettingsSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class SystemSettingsSeeder extends Seeder
+{
+    public function run(): void
+    {
+        DB::table('system_settings')->insert([
+            [
+                'key'   => 'site_name',
+                'value' => 'MMS Design CRM',
+            ],
+            [
+                'key'   => 'default_currency',
+                'value' => 'ZAR',
+            ],
+            [
+                'key'   => 'default_vat_percentage',
+                'value' => '15',
+            ],
+            [
+                'key'   => 'quote_prefix',
+                'value' => 'Q-',
+            ],
+            [
+                'key'   => 'invoice_prefix',
+                'value' => 'INV-',
+            ],
+            [
+                'key'   => 'default_terms_id',
+                'value' => '1',
+            ],
+            [
+                'key'   => 'default_email_from',
+                'value' => 'crm@mmsdesign.co.za',
+            ],
+        ]);
+    }
+}
+
+
+
+# TermsSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class TermsSeeder extends Seeder
+{
+    public function run(): void
+    {
+        DB::table('terms_and_conditions')->insert([
+            'title' => 'Standard MMS Quote Terms',
+            'content' => '
+                1. All prices exclude VAT unless otherwise stated.<br>
+                2. Validity of this quotation is 14 days from issue date.<br>
+                3. Goods remain the property of MMS Design until full payment is received.<br>
+                4. Delivery subject to stock availability.<br>
+                5. Warranty as per manufacturer terms.<br>
+                6. Payment terms: 50% deposit on order, balance on delivery.<br>
+                7. Bank Details:<br>
+                Bank: XYZ Bank<br>
+                Account No: 123456789<br>
+                Branch Code: 12345<br>
+                Swift Code: XYZABC<br>
+                8. Contact us for any clarifications.<br>
+            ',
+            'is_default' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+}
+
+
+# UsersSeeder.php - Contents #
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+
+class UsersSeeder extends Seeder
+{
+    public function run(): void
+    {
+        // Admin User
+        User::create([
+            'name' => 'Admin User',
+            'email' => 'admin@example.com',
+            'password' => Hash::make('password'),
+            'role' => 'admin',
+        ]);
+		
+		// KeyDealer User
+        User::create([
+            'name' => 'KeyDealer User',
+            'email' => 'admin@example.com',
+            'password' => Hash::make('password'),
+            'role' => 'key_dealer',
+        ]);
+
+        // SubDealer User
+        User::create([
+            'name' => 'SubDealer One',
+            'email' => 'subdealer1@example.com',
+            'password' => Hash::make('password'),
+            'role' => 'sub_dealer',
+        ]);
+
+        // Add more users as needed
+    }
+}
+
+
+

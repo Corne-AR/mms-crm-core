@@ -1,0 +1,112 @@
+/* ==========================================================================
+   Project: MMS Design CRM
+   File:    custom.css
+   Author:  MMS Design CC - www.mmsdesign.co.za
+   Version: 1.0.1
+   Date:    2025-06-11
+   ==========================================================================
+   Color Palette:
+   - Primary Green:     #008E49
+   - Accent Lime Green: #A6CE39
+   - Charcoal:          #4D4D50
+   - Light Grey BG:     #F5F5F5
+   ========================================================================== */
+
+:root {
+  --primary-color: #008E49;
+  --accent-color:  #A6CE39;
+  --dark-color:    #4D4D50;
+  --bg-color:      #F5F5F5;
+  --text-color:    #4D4D50;
+  --white:         #FFFFFF;
+}
+
+/* Base Styles */
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: "Segoe UI", Tahoma, sans-serif;
+}
+
+/* Header */
+.navbar, .topbar {
+  background-color: var(--dark-color);
+  color: var(--white);
+  padding: 0.75rem 1.5rem;
+}
+
+/* Logo */
+.logo {
+  height: 60px;
+}
+
+/* Primary Buttons */
+.btn-primary {
+  background-color: var(--primary-color);
+  border: none;
+  color: var(--white);
+  border-radius: 25px;
+  padding: 10px 24px;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-color);
+  color: var(--dark-color);
+}
+
+/* Secondary / Dark Button */
+.btn-dark {
+  background-color: var(--dark-color);
+  border: none;
+  color: var(--white);
+  border-radius: 25px;
+  padding: 10px 24px;
+}
+
+.btn-dark:hover {
+  background-color: var(--primary-color);
+}
+
+/* Feature Circles */
+.feature-icon {
+  background-color: var(--accent-color);
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem auto;
+}
+
+/* Section Titles */
+h1, h2, h3 {
+  color: var(--dark-color);
+  font-weight: 700;
+}
+
+/* Cards */
+.card {
+  border-radius: 16px;
+  border: none;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+  background-color: var(--accent-color);
+  color: var(--white);
+  font-weight: bold;
+}
+
+/* Footer */
+footer {
+  background-color: var(--dark-color);
+  color: var(--white);
+  padding: 2rem;
+  font-size: 0.875rem;
+}
+
+footer a {
+  color: var(--accent-color);
+}

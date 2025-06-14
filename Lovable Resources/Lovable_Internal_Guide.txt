@@ -1,0 +1,33 @@
+Lovable Knowledge: Internal Dashboard
+-------------------------------------
+
+Purpose:
+Provide a real-time operational overview for MMS staff: sales, finance, inventory, and admin.
+
+Target Users:
+- Admin
+- Internal Sales
+- Managers
+
+Dashboard Elements:
+- Summary KPIs (quotes, invoices, revenue, customers, stock levels)
+- Quote trends (bar chart by month)
+- Revenue by product category (donut)
+- Quote status (pie or bar)
+- Stock alerts
+- Recent activity log
+
+Style Guide:
+- Brand colors: #008e49, #a6ce39
+- Font: Open Sans
+- Layout: 2 summary rows + 2 chart rows
+- Dark mode optional
+
+Naming Conventions:
+- Title: “Internal Overview - MMS Design CRM”
+- Cards: “Total Revenue”, “Open Quotes”, etc.
+- Charts: “Quotes Over Time”, “Revenue by Product Category”
+
+Data Source Mapping:
+- quotes, invoices, products, stock_levels, audit_logs
+- Use SQL views or Laravel endpoints for optimized queries

@@ -1,0 +1,72 @@
+/* mms-brand.css - Custom branding for MMS Design CRM */
+
+body {
+    background-color: #f8f9fa;
+    color: #333;
+    font-family: 'Open Sans', sans-serif;
+}
+
+.navbar {
+    background-color: #008e49 !important;
+}
+
+.navbar .nav-link,
+.navbar-brand {
+    color: #fff !important;
+}
+
+.navbar .nav-link:hover,
+.navbar-brand:hover {
+    color: #a6ce39 !important;
+}
+
+.btn-primary {
+    background-color: #008e49;
+    border-color: #008e49;
+}
+
+.btn-primary:hover {
+    background-color: #006837;
+    border-color: #006837;
+}
+
+.btn-secondary {
+    background-color: #4d4d50;
+    border-color: #4d4d50;
+}
+
+.btn-secondary:hover {
+    background-color: #2f2f30;
+    border-color: #2f2f30;
+}
+
+footer {
+    background-color: #4d4d50;
+    color: #fff;
+    padding: 1rem 0;
+    text-align: center;
+}
+
+.card-header,
+.card-footer {
+    background-color: #a6ce39;
+    color: #fff;
+}
+
+.card {
+    border: 1px solid #ddd;
+}
+
+.table thead {
+    background-color: #008e49;
+    color: #fff;
+}
+
+a {
+    color: #008e49;
+}
+
+a:hover {
+    color: #006837;
+    text-decoration: underline;
+}
