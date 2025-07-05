@@ -4,8 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Quote;
-use App\Models\Product;
 
 class QuoteItem extends Model
 {
@@ -19,13 +17,33 @@ class QuoteItem extends Model
         'line_discount',
     ];
 
+    protected $casts = [
+        'qty' => 'integer',
+        'unit_price' => 'float',
+        'line_discount' => 'float',
+    ];
+
+    /**
+     * The quote this item belongs to.
+     */
     public function quote()
     {
         return $this->belongsTo(Quote::class);
     }
 
+    /**
+     * The product this item references.
+     */
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Get the total price of this line (qty * unit_price - discount).
+     */
+    public function getLineTotalAttribute(): float
+    {
+        return max(0, ($this->qty * $this->unit_price) - $this->line_discount);
     }
 }

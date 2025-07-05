@@ -1,7 +1,201 @@
 
+MASTER STRUCTURE (v21)
+
+NOTE: This is not the final complete blueprint. It represents the current state of implementation and will be iteratively expanded.
+
+PROJECT NAME: MMS Design CRM
+
+APP STRUCTURE OVERVIEW:
+- Laravel based application (v11+)
+- PHP 8.2+
+- MariaDB on XAMPP (local dev)
+- Filament (for Admin and Dealer dashboards)
+- Blade + Bootstrap UI (non-SPA)
+
+MAJOR MODULES:
+✅ Customers
+✅ Dealers
+✅ Quotes & Quote Items
+✅ Products & Kits
+✅ Invoices
+✅ Stock
+✅ Roles & Permissions
+✅ User Management
+✅ Email & PDF generation
+✅ Audit Logs
+✅ Reminders
+✅ System Settings
+
+MASTER FOLDERS:
+- app/Models
+- app/Filament/Resources
+- app/Filament/Pages
+- database/migrations
+- database/seeders
+- resources/views/
+- public/assets/
+- routes/web.php
+- routes/filament.php (if separate)
+
+DATABASE TABLES (based on migrations):
+- customers
+- dealers
+- products
+- kits
+- kit_assemblies
+- quotes
+- quote_items
+- invoices
+- invoice_items
+- users
+- roles
+- permissions
+- stock_levels
+- audit_logs
+- system_settings
+- email_logs
+- notification_preferences
+- activity_reminders
+- subscriptions
+- payment_links
+
+UTILITY FILES:
+- prep_files.bat
+- prep_files_FINAL.bat
+- deployment.bat
+- DUPLICATE_REPORT.txt
+
+CONFIG NOTES:
+- Custom quote number generation logic in CreateQuote
+- CreateQuote mutates: quote_number, user_id, status
+- Forms auto-bind Dealer and Customer
+- PDF toggle hidden from user
+- Terms default to JSON encoded string (for now)
+
+TO DO (ROADMAP):
+[ ] Consolidate all quote + invoice logic
+[ ] Fix roles logic between Dealers and Users
+[ ] Dealer-specific dashboards (WIP)
+[ ] Subscription logic and WhatsApp integration
+[ ] Zip archiving automation
+[ ] Automate batch PDF/email (post generation)
+
+CURRENT TASK (in session):
+Resolve column binding error: `users.dealer_name` is being called but does not exist in the `users` table. Clarify intended data source for 'dealer_name' dropdowns.
+
+===== ROOT FILES =====
+
+--- FILE: .env ---
+APP_NAME="MMS Design CRM"
+APP_ENV=local
+APP_KEY=base64:6deWlQrdhRoihSHBM+hX+QhSVdZs7qpNM2SmQSnsO+c=
+APP_DEBUG=true
+APP_URL=http://localhost/mms-crm/public
+
+LOG_CHANNEL=stack
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=mms_crm
+DB_USERNAME=root
+DB_PASSWORD=
+
+BROADCAST_DRIVER=log
+CACHE_DRIVER=file
+QUEUE_CONNECTION=sync
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+
+MAIL_MAILER=smtp
+MAIL_HOST=your.smtp.host
+MAIL_PORT=587
+MAIL_USERNAME=your@email.com
+MAIL_PASSWORD=yourpassword
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=your@email.com
+MAIL_FROM_NAME="${APP_NAME}"
+
+PDF_DRIVER=dompdf
+
+--- FILE: composer.json ---
+{
+    "name": "mmsdesign/mms-crm",
+    "description": "MMS CRM System - Dealer & Sub-Dealer Quoting & Invoicing",
+    "type": "project",
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^12.0",
+        "filament/filament": "^3.0",
+        "barryvdh/laravel-dompdf": "^3.1",
+        "laravel/sanctum": "^4.1",
+        "laravel/tinker": "^2.10"
+    },
+    "require-dev": {
+        "fakerphp/faker": "^1.9.1",
+        "phpunit/phpunit": "^10.0",
+        "larastan/larastan": "^3.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Database\\Seeders\\": "database/seeders/"
+        },
+        "files": [
+            "app/Helpers/helpers.php"
+        ]
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ]
+    }
+}
+
+
+--- FILE: package.json ---
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite"
+    },
+    "devDependencies": {
+        "@tailwindcss/vite": "^4.0.0",
+        "axios": "^1.8.2",
+        "concurrently": "^9.0.1",
+        "laravel-vite-plugin": "^1.2.0",
+        "tailwindcss": "^4.0.0",
+        "vite": "^6.2.4"
+    }
+}
+
+
+--- FILE: phpstan.neon ---
+includes:
+    - ./vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+        - database/migrations
+        - database/seeders
+        - routes
+    level: 5
+
+    excludePaths:
+        - tests/*
+        - vendor/*
+
+    checkMissingTypehints: true
+    checkUninitializedProperties: true
+
 
 ===== FOLDER: app =====
-
 
 --- FILE: app\Filament\Resources\CustomerResource.php ---
 <?php
@@ -180,6 +374,100 @@ public static function table(Tables\Table $table): Tables\Table
             'index' => Pages\ListCustomers::route('/'),
             'create' => Pages\CreateCustomer::route('/create'),
             'edit' => Pages\EditCustomer::route('/{record}/edit'),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\QuoteResource.php ---
+<?php
+
+namespace App\Filament\Resources;
+
+use App\Filament\Resources\QuoteResource\Pages;
+use App\Models\Quote;
+use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Table;
+
+class QuoteResource extends Resource
+{
+    protected static ?string $model = Quote::class;
+
+    protected static ?string $navigationIcon = 'heroicon-o-document-text';
+
+    protected static ?string $navigationGroup = 'CRM';
+
+    protected static ?string $navigationLabel = 'Quotes';
+
+    public static function form(Form $form): Form
+    {
+        return $form->schema([
+            Forms\Components\Select::make('subdealer_id')
+                ->relationship('subdealer', 'dealer_name')
+                ->required(),
+
+            Forms\Components\Select::make('customer_id')
+                ->relationship('customer', 'company_name')
+                ->required(),
+
+            Forms\Components\TextInput::make('quote_number')->required(),
+
+            Forms\Components\DatePicker::make('quote_date')->required(),
+
+            Forms\Components\Select::make('status')
+                ->options([
+                    'Draft' => 'Draft',
+                    'Sent' => 'Sent',
+                    'Accepted' => 'Accepted',
+                    'Declined' => 'Declined',
+                ])
+                ->required(),
+
+            Forms\Components\Textarea::make('terms')
+                ->rows(3),
+
+            Forms\Components\TextInput::make('subtotal')->numeric()->required(),
+
+            Forms\Components\TextInput::make('vat_amount')->numeric()->required(),
+
+            Forms\Components\TextInput::make('total_amount')->numeric()->required(),
+
+            Forms\Components\TextInput::make('currency')->default('ZAR'),
+
+            Forms\Components\Toggle::make('is_pdf_generated'),
+        ]);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return $table->columns([
+            Tables\Columns\TextColumn::make('quote_number')->searchable(),
+            Tables\Columns\TextColumn::make('subdealer.dealer_name')->label('Sub-Dealer')->sortable(),
+            Tables\Columns\TextColumn::make('customer.company_name')->label('Customer')->sortable(),
+            Tables\Columns\TextColumn::make('total_amount')->sortable(),
+            Tables\Columns\TextColumn::make('currency'),
+            Tables\Columns\TextColumn::make('status')->sortable(),
+            Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
+        ])
+        ->filters([])
+        ->actions([
+            Tables\Actions\ViewAction::make(),
+            Tables\Actions\EditAction::make(),
+        ])
+        ->bulkActions([
+            Tables\Actions\DeleteBulkAction::make(),
+        ]);
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListQuotes::route('/'),
+            'create' => Pages\CreateQuote::route('/create'),
+            'edit' => Pages\EditQuote::route('/{record}/edit'),
         ];
     }
 }
@@ -380,6 +668,156 @@ class ListCustomers extends ListRecords
 }
 
 
+--- FILE: app\Filament\Resources\QuoteResource\Pages\CreateQuote.php ---
+<?php
+
+namespace App\Filament\Resources\QuoteResource\Pages;
+
+use App\Filament\Resources\QuoteResource;
+use App\Models\Dealer;
+use App\Models\Customer;
+use App\Models\User;
+use Filament\Resources\Pages\CreateRecord;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Toggle;
+
+class CreateQuote extends CreateRecord
+{
+    protected static string $resource = QuoteResource::class;
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $data['user_id'] = auth()->id();
+        $data['status'] = 'Draft';
+        $data['is_pdf_generated'] = false;
+
+        // Default quote number logic (could be improved for concurrency)
+        $latestQuote = \App\Models\Quote::orderBy('id', 'desc')->first();
+        $nextId = $latestQuote ? $latestQuote->id + 1 : 1;
+        $data['quote_number'] = 'Q-' . str_pad($nextId, 5, '0', STR_PAD_LEFT);
+
+        return $data;
+    }
+
+    protected function getFormSchema(): array
+    {
+        return [
+            Grid::make()
+                ->schema([
+                    Select::make('dealer_id')
+                        ->label('Dealer')
+                        ->options(Dealer::pluck('dealer_name', 'id')->toArray())
+                        ->required(),
+
+                    Select::make('customer_id')
+                        ->label('Customer')
+                        ->options(Customer::pluck('company_name', 'id')->toArray())
+                        ->required(),
+
+                    DatePicker::make('quote_date')
+                        ->label('Quote Date')
+                        ->required()
+                        ->default(now()),
+
+                    Textarea::make('terms')
+                        ->label('Terms')
+                        ->default(json_encode(['Standard terms apply.']))
+                        ->rows(2),
+
+                    Toggle::make('is_pdf_generated')
+                        ->label('PDF Generated')
+                        ->default(false)
+                        ->hidden(),
+
+                    Hidden::make('status')->default('Draft'),
+                ])
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\QuoteResource\Pages\EditQuote.php ---
+<?php
+
+namespace App\Filament\Resources\QuoteResource\Pages;
+
+use App\Filament\Resources\QuoteResource;
+use App\Models\Dealer;
+use App\Models\Customer;
+use Filament\Resources\Pages\EditRecord;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Hidden;
+
+class EditQuote extends EditRecord
+{
+    protected static string $resource = QuoteResource::class;
+
+    protected function getFormSchema(): array
+    {
+        return [
+            Grid::make()
+                ->schema([
+                    Select::make('dealer_id')
+                        ->label('Dealer')
+                        ->options(Dealer::pluck('dealer_name', 'id')->toArray())
+                        ->required(),
+
+                    Select::make('customer_id')
+                        ->label('Customer')
+                        ->options(Customer::pluck('company_name', 'id')->toArray())
+                        ->required(),
+
+                    DatePicker::make('quote_date')
+                        ->label('Quote Date')
+                        ->required(),
+
+                    Textarea::make('terms')
+                        ->label('Terms')
+                        ->rows(2),
+
+                    Toggle::make('is_pdf_generated')
+                        ->label('PDF Generated'),
+
+                    Hidden::make('status'),
+                ])
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\QuoteResource\Pages\ListQuotes.php ---
+<?php
+
+namespace App\Filament\Resources\QuoteResource\Pages;
+
+use App\Filament\Resources\QuoteResource;
+use Filament\Resources\Pages\ListRecords;
+use Filament\Actions\CreateAction;
+
+class ListQuotes extends ListRecords
+{
+    protected static string $resource = QuoteResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            CreateAction::make(),
+        ];
+    }
+}
+
+
 --- FILE: app\Filament\Resources\UserResource\Pages\CreateUser.php ---
 <?php
 
@@ -469,7 +907,11 @@ class CustomerController extends Controller
 {
     public function index() {
         return Customer::all();
+    
+    public function indexView() {
+        return view('customers.index');
     }
+}
 
     public function store(Request $request) {
         $data = $request->validate([
@@ -486,20 +928,40 @@ class CustomerController extends Controller
             'address' => 'nullable'
         ]);
         return Customer::create($data);
+    
+    public function indexView() {
+        return view('customers.index');
     }
+}
 
     public function show(Customer $customer) {
         return $customer;
+    
+    public function indexView() {
+        return view('customers.index');
     }
+}
 
     public function update(Request $request, Customer $customer) {
         $customer->update($request->all());
         return $customer;
+    
+    public function indexView() {
+        return view('customers.index');
     }
+}
 
     public function destroy(Customer $customer) {
         $customer->delete();
         return response()->noContent();
+    
+    public function indexView() {
+        return view('customers.index');
+    }
+}
+
+    public function indexView() {
+        return view('customers.index');
     }
 }
 
@@ -531,7 +993,11 @@ class DealerController extends Controller
 {
     public function index() {
         return Dealer::all();
+    
+    public function indexView() {
+        return view('dealers.index');
     }
+}
 
     public function store(Request $request) {
         $data = $request->validate([
@@ -545,24 +1011,42 @@ class DealerController extends Controller
             'logo' => 'nullable'
         ]);
         return Dealer::create($data);
+    
+    public function indexView() {
+        return view('dealers.index');
     }
+}
 
     public function show(Dealer $dealer) {
         return $dealer;
+    
+    public function indexView() {
+        return view('dealers.index');
     }
+}
 
     public function update(Request $request, Dealer $dealer) {
         $dealer->update($request->all());
         return $dealer;
+    
+    public function indexView() {
+        return view('dealers.index');
     }
+}
 
     public function destroy(Dealer $dealer) {
         $dealer->delete();
         return response()->noContent();
+    
+    public function indexView() {
+        return view('dealers.index');
     }
 }
 
-
+    public function indexView() {
+        return view('dealers.index');
+    }
+}
 
 --- FILE: app\Http\Controllers\InvoiceController.php ---
 <?php
@@ -576,7 +1060,11 @@ class InvoiceController extends Controller
 {
     public function index() {
         return Invoice::with('items')->get();
+    
+    public function showView($id) {
+        return view('invoices.show');
     }
+}
 
     public function store(Request $request) {
         $data = $request->validate([
@@ -590,20 +1078,40 @@ class InvoiceController extends Controller
             'currency' => 'required|string'
         ]);
         return Invoice::create($data);
+    
+    public function showView($id) {
+        return view('invoices.show');
     }
+}
 
     public function show(Invoice $invoice) {
         return $invoice->load('items');
+    
+    public function showView($id) {
+        return view('invoices.show');
     }
+}
 
     public function update(Request $request, Invoice $invoice) {
         $invoice->update($request->all());
         return $invoice;
+    
+    public function showView($id) {
+        return view('invoices.show');
     }
+}
 
     public function destroy(Invoice $invoice) {
         $invoice->delete();
         return response()->noContent();
+    
+    public function showView($id) {
+        return view('invoices.show');
+    }
+}
+
+    public function showView($id) {
+        return view('invoices.show');
     }
 }
 
@@ -733,102 +1241,63 @@ class ProductController extends Controller
 --- FILE: app\Http\Controllers\QuoteController.php ---
 <?php
 
-// QuoteController.php
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreQuoteRequest;
 use App\Models\Quote;
 use App\Models\QuoteItem;
-use App\Models\Invoice;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\RedirectResponse;
 
 class QuoteController extends Controller
 {
-    public function index() {
-        return Quote::with('items')->orderBy('created_at', 'desc')->get();
-    }
+    public function store(StoreQuoteRequest $request): RedirectResponse
+    {
+        DB::beginTransaction();
 
-    public function show($id) {
-        return Quote::with('items')->findOrFail($id);
-    }
-
-    public function store(Request $request) {
-        $validated = $request->validate([
-            'subdealer_id' => 'required|exists:users,id',
-            'customer_id' => 'required|exists:customers,id',
-            'user_id' => 'required|exists:users,id',
-            'quote_date' => 'required|date',
-            'terms' => 'nullable|array',
-            'currency' => 'required|string|max:10',
-        ]);
-
-        $nextNumber = Quote::max('id') + 1;
-        $quoteNumber = 'Q-' . str_pad((string)$nextNumber, 5, '0', STR_PAD_LEFT);
-
-        $quote = Quote::create([
-            'quote_number' => $quoteNumber,
-            'subdealer_id' => $validated['subdealer_id'],
-            'customer_id' => $validated['customer_id'],
-            'user_id' => $validated['user_id'],
-            'quote_date' => $validated['quote_date'],
-            'status' => 'Draft',
-            'terms' => $validated['terms'] ?? [],
-            'subtotal' => 0,
-            'vat_amount' => 0,
-            'total_amount' => 0,
-            'currency' => $validated['currency'],
-            'is_pdf_generated' => false,
-        ]);
-
-        return response()->json($quote, 201);
-    }
-
-    public function edit($id) {
-        $quote = Quote::with('items')->findOrFail($id);
-        return response()->json($quote);
-    }
-
-    public function update(Request $request, $id) {
-        $quote = Quote::with('items')->findOrFail($id);
-
-        $data = $request->all();
-        $quote->update($data);
-
-        $quote->total_amount = (float) $quote->subtotal + (float) $quote->vat_amount;
-        $quote->save();
-
-        return response()->json($quote);
-    }
-
-    public function convertToInvoice($id) {
-        $quote = Quote::with('items')->findOrFail($id);
-
-        DB::transaction(function () use ($quote) {
-            $invoice = Invoice::create([
-                'invoice_number' => 'INV-' . str_pad((string)(Invoice::max('id') + 1), 5, '0', STR_PAD_LEFT),
-                'customer_id' => $quote->customer_id,
-                'user_id' => $quote->user_id,
-                'quote_id' => $quote->id,
-                'invoice_date' => now(),
-                'status' => 'Pending',
-                'terms' => $quote->terms,
-                'subtotal' => $quote->subtotal,
-                'vat_amount' => $quote->vat_amount,
-                'total_amount' => $quote->total_amount,
-                'currency' => $quote->currency,
-                'converted_from_quote_at' => now(),
-                'is_pdf_generated' => false,
+        try {
+            $quote = Quote::create([
+                'dealer_id' => auth()->user()->dealer_id,
+                'customer_id' => $request->customer_id,
+                'quote_number' => 'Q-' . now()->format('YmdHis'),
+                'subtotal' => 0,
+                'vat_amount' => 0,
+                'total_amount' => 0,
             ]);
 
+            $subtotal = 0;
+            foreach ($request->product as $index => $productName) {
+                $qty = (int)$request->qty[$index];
+                $unitPrice = 100; // Placeholder: replace with real product price lookup
+                $lineTotal = $qty * $unitPrice;
+                $subtotal += $lineTotal;
+
+                QuoteItem::create([
+                    'quote_id' => $quote->id,
+                    'product_id' => 1, // TODO: fetch actual product ID
+                    'qty' => $qty,
+                    'unit_price' => $unitPrice,
+                    'line_discount' => 0,
+                ]);
+            }
+
+            $vat = $subtotal * 0.15;
             $quote->update([
-                'status' => 'Invoiced',
-                'converted_to_invoice_at' => now(),
+                'subtotal' => $subtotal,
+                'vat_amount' => $vat,
+                'total_amount' => $subtotal + $vat,
             ]);
-        });
 
-        return response()->json(['message' => 'Quote converted to Invoice!']);
+            DB::commit();
+
+            return redirect()->route('quotes.index')->with('status', 'Quote created successfully!');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Error creating quote: ' . $e->getMessage());
+        }
     }
 }
+
 
 --- FILE: app\Http\Controllers\RolesController.php ---
 <?php
@@ -948,6 +1417,31 @@ class UserController extends Controller
     {
         User::destroy($id);
         return response()->json(null, 204);
+    }
+}
+
+
+--- FILE: app\Http\Requests\StoreQuoteRequest.php ---
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class StoreQuoteRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'customer_id' => 'required|exists:customers,id',
+            'product.*' => 'required|string',
+            'qty.*' => 'required|numeric|min:1',
+        ];
     }
 }
 
@@ -1438,6 +1932,8 @@ class UserRole extends Model
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Filament\Support\Facades\FilamentAsset;
+use Filament\Support\Assets\Css;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -1452,9 +1948,124 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
+	public function boot(): void
+	{
+		FilamentAsset::register([
+			Css::make('mms-brand', asset('css/mms-brand.css')),
+		]);
+	}
+}
+
+
+--- FILE: app\Providers\AuthServiceProvider.php ---
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\Gate;
+
+class AuthServiceProvider extends ServiceProvider
+{
+    /**
+     * The policy mappings for the application.
+     *
+     * @var array
+     */
+    protected $policies = [
+        // 'App\Models\Model' => 'App\Policies\ModelPolicy',
+    ];
+
+    /**
+     * Register any authentication / authorization services.
+     */
+    public function boot(): void
+    {
+        $this->registerPolicies();
+    }
+}
+
+
+--- FILE: app\Providers\EventServiceProvider.php ---
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+
+class EventServiceProvider extends ServiceProvider
+{
+    protected $listen = [
+        // Your events and listeners
+    ];
+
     public function boot(): void
     {
         //
+    }
+}
+
+
+--- FILE: app\Providers\FilamentServiceProvider.php ---
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+use Filament\Support\Facades\FilamentAsset;
+use Filament\Support\Assets\Css;
+
+class FilamentServiceProvider extends ServiceProvider
+{
+    public function boot(): void
+    {
+        FilamentAsset::register([
+            Css::make('mms-brand', __DIR__ . '/../../public/css/mms-brand.css'),
+        ]);
+    }
+}
+
+
+--- FILE: app\Providers\RouteServiceProvider.php ---
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\Facades\Route;
+use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
+
+class RouteServiceProvider extends ServiceProvider
+{
+    /**
+     * This namespace is applied to your controller routes.
+     *
+     * @var string
+     */
+    protected $namespace = 'App\\Http\\Controllers';
+
+    /**
+     * Define your route model bindings, pattern filters, etc.
+     */
+    public function boot()
+    {
+        parent::boot();
+    }
+
+    /**
+     * Define the routes for the application.
+     */
+    public function map()
+    {
+        $this->mapWebRoutes();
+
+        // Add other maps if needed (e.g., API routes)
+    }
+
+    protected function mapWebRoutes()
+    {
+        Route::middleware('web')
+            ->namespace($this->namespace)
+            ->group(base_path('routes/web.php'));
     }
 }
 
@@ -1520,9 +2131,1615 @@ class AdminPanelProvider extends PanelProvider
 }
 
 
+===== FOLDER: app/Filament =====
 
-===== FOLDER: app\Helpers =====
+--- FILE: app\Filament\Resources\CustomerResource.php ---
+<?php
 
+namespace App\Filament\Resources;
+
+use App\Models\Customer;
+use Filament\Forms;
+use Filament\Tables;
+use Filament\Resources\Resource;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Hidden;
+use Filament\Tables\Columns\TextColumn;
+use App\Filament\Resources\CustomerResource\Pages;
+use Illuminate\Support\Facades\Auth;
+
+class CustomerResource extends Resource
+{
+    protected static ?string $model = Customer::class;
+    protected static ?string $navigationIcon = 'heroicon-o-user-group';
+    protected static ?string $navigationLabel = 'Customers';
+    protected static ?string $navigationGroup = 'CRM';
+
+public static function form(Forms\Form $form): Forms\Form
+{
+    return $form->schema([
+        TextInput::make('company_name')->required(),
+		Textarea::make('address')
+			->label('Address')
+			->rows(3)
+			->columnSpanFull()
+			->placeholder('Enter full address')
+			->required(false),
+        TextInput::make('contact_full_name')->required(),
+        TextInput::make('email')->email()->required(),
+        TextInput::make('phone')->required(),
+        TextInput::make('vendor_nr')->label('Vendor Number')->nullable(),
+        TextInput::make('vat_nr')->label('VAT Number')->nullable(),
+        Select::make('category')
+            ->options([
+                'Irigation' => 'Irigation',
+                'Consultant' => 'Consultant',
+                'Contractor' => 'Contractor',
+                'Government' => 'Government',
+                'Mine' => 'Mine',
+                'Quantity Surveying' => 'Quantity Surveying',
+                'Survey' => 'Survey',
+                'Town Planning' => 'Town Planning',
+                'Golf Course' => 'Golf Course',
+                'Municipality' => 'Municipality',
+                'Landscaping' => 'Landscaping',
+                'Architects' => 'Architects',
+                'Supplier' => 'Supplier',
+                'Farm' => 'Farm',
+                'Reseller' => 'Reseller',
+                'Other' => 'Other',
+            ])
+            ->required(),
+        Select::make('language')
+            ->options(['Afrikaans' => 'Afrikaans', 'English' => 'English', 'Other' => 'Other'])
+            ->default('English')
+            ->required(),
+        Select::make('type')
+            ->options(['Local' => 'Local', 'International' => 'International', 'Other' => 'Other'])
+            ->default('Local')
+            ->required(),
+        Select::make('currency')
+            ->options(['ZAR' => 'ZAR', 'USD' => 'USD', 'GBP' => 'GBP', 'EUR' => 'EUR', 'Other' => 'Other'])
+            ->default('ZAR')
+            ->required(),
+        Textarea::make('notes')
+			->label('Notes')
+			->rows(3)
+			->nullable()
+			->columnSpanFull(),
+		Hidden::make('created_by')
+			->default(fn () => Auth::id())
+			->required()
+			->dehydrated()
+			->hidden(),
+    ]);
+}
+
+public static function table(Tables\Table $table): Tables\Table
+{
+    return $table
+        ->columns([
+            Tables\Columns\TextColumn::make('company_name')
+                ->sortable()
+                ->searchable(),
+
+            Tables\Columns\TextColumn::make('contact_full_name')
+                ->searchable(),
+
+            Tables\Columns\TextColumn::make('email')
+                ->searchable(),
+
+            Tables\Columns\TextColumn::make('phone')
+                ->searchable(),
+
+            Tables\Columns\TextColumn::make('vendor_nr')
+                ->label('Vendor #')
+                ->searchable(),
+
+            Tables\Columns\TextColumn::make('category'),
+
+            Tables\Columns\TextColumn::make('language'),
+
+            Tables\Columns\TextColumn::make('currency'),
+
+            Tables\Columns\TextColumn::make('created_at')
+                ->label('Created')
+                ->dateTime()
+                ->sortable(),
+        ])
+        ->filters([
+            Tables\Filters\SelectFilter::make('category')
+                ->options([
+                    'Irigation' => 'Irigation',
+                    'Consultant' => 'Consultant',
+                    'Contractor' => 'Contractor',
+                    'Government' => 'Government',
+                    'Mine' => 'Mine',
+                    'Quantity Surveying' => 'Quantity Surveying',
+                    'Survey' => 'Survey',
+                    'Town Planning' => 'Town Planning',
+                    'Golf Course' => 'Golf Course',
+                    'Municipality' => 'Municipality',
+                    'Landscaping' => 'Landscaping',
+                    'Architects' => 'Architects',
+                    'Supplier' => 'Supplier',
+                    'Farm' => 'Farm',
+                    'Reseller' => 'Reseller',
+                    'Other' => 'Other',
+                ])
+                ->label('Category'),
+
+            Tables\Filters\SelectFilter::make('language')
+                ->options([
+                    'Afrikaans' => 'Afrikaans',
+                    'English' => 'English',
+                    'Other' => 'Other',
+                ])
+                ->label('Language'),
+
+            Tables\Filters\SelectFilter::make('currency')
+                ->options([
+                    'ZAR' => 'ZAR',
+                    'USD' => 'USD',
+                    'GBP' => 'GBP',
+                    'EUR' => 'EUR',
+                    'Other' => 'Other',
+                ])
+                ->label('Currency'),
+
+            Tables\Filters\Filter::make('created_at')
+                ->form([
+                    Forms\Components\DatePicker::make('from')->label('From'),
+                    Forms\Components\DatePicker::make('until')->label('Until'),
+                ])
+                ->query(function ($query, array $data) {
+                    return $query
+                        ->when($data['from'], fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
+                        ->when($data['until'], fn ($query, $date) => $query->whereDate('created_at', '<=', $date));
+                }),
+        ])
+        ->defaultSort('created_at', 'desc');
+}
+
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListCustomers::route('/'),
+            'create' => Pages\CreateCustomer::route('/create'),
+            'edit' => Pages\EditCustomer::route('/{record}/edit'),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\QuoteResource.php ---
+<?php
+
+namespace App\Filament\Resources;
+
+use App\Filament\Resources\QuoteResource\Pages;
+use App\Models\Quote;
+use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Table;
+
+class QuoteResource extends Resource
+{
+    protected static ?string $model = Quote::class;
+
+    protected static ?string $navigationIcon = 'heroicon-o-document-text';
+
+    protected static ?string $navigationGroup = 'CRM';
+
+    protected static ?string $navigationLabel = 'Quotes';
+
+    public static function form(Form $form): Form
+    {
+        return $form->schema([
+            Forms\Components\Select::make('subdealer_id')
+                ->relationship('subdealer', 'dealer_name')
+                ->required(),
+
+            Forms\Components\Select::make('customer_id')
+                ->relationship('customer', 'company_name')
+                ->required(),
+
+            Forms\Components\TextInput::make('quote_number')->required(),
+
+            Forms\Components\DatePicker::make('quote_date')->required(),
+
+            Forms\Components\Select::make('status')
+                ->options([
+                    'Draft' => 'Draft',
+                    'Sent' => 'Sent',
+                    'Accepted' => 'Accepted',
+                    'Declined' => 'Declined',
+                ])
+                ->required(),
+
+            Forms\Components\Textarea::make('terms')
+                ->rows(3),
+
+            Forms\Components\TextInput::make('subtotal')->numeric()->required(),
+
+            Forms\Components\TextInput::make('vat_amount')->numeric()->required(),
+
+            Forms\Components\TextInput::make('total_amount')->numeric()->required(),
+
+            Forms\Components\TextInput::make('currency')->default('ZAR'),
+
+            Forms\Components\Toggle::make('is_pdf_generated'),
+        ]);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return $table->columns([
+            Tables\Columns\TextColumn::make('quote_number')->searchable(),
+            Tables\Columns\TextColumn::make('subdealer.dealer_name')->label('Sub-Dealer')->sortable(),
+            Tables\Columns\TextColumn::make('customer.company_name')->label('Customer')->sortable(),
+            Tables\Columns\TextColumn::make('total_amount')->sortable(),
+            Tables\Columns\TextColumn::make('currency'),
+            Tables\Columns\TextColumn::make('status')->sortable(),
+            Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
+        ])
+        ->filters([])
+        ->actions([
+            Tables\Actions\ViewAction::make(),
+            Tables\Actions\EditAction::make(),
+        ])
+        ->bulkActions([
+            Tables\Actions\DeleteBulkAction::make(),
+        ]);
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListQuotes::route('/'),
+            'create' => Pages\CreateQuote::route('/create'),
+            'edit' => Pages\EditQuote::route('/{record}/edit'),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\UserResource.php ---
+<?php
+
+namespace App\Filament\Resources;
+
+use App\Models\User;
+use Filament\Forms;
+use Filament\Tables;
+use Filament\Resources\Resource;
+use Filament\Forms\Components\Group;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
+use Filament\Tables\Columns\TextColumn;
+use App\Filament\Resources\UserResource\Pages;
+use Illuminate\Support\Facades\Hash;
+
+class UserResource extends Resource
+{
+    protected static ?string $model = User::class;
+
+    protected static ?string $navigationIcon = 'heroicon-o-users';
+    protected static ?string $navigationGroup = 'Admin';
+
+    public static function form(Forms\Form $form): Forms\Form
+    {
+        return $form->schema([
+            TextInput::make('name')
+                ->label('Username')
+                ->required()
+				->unique(ignoreRecord: true),
+
+            TextInput::make('email')
+				->email()
+				->required()
+				->unique(ignoreRecord: true),
+
+
+			Section::make('User Password')
+				->schema([
+					Checkbox::make('change_password')
+						->label('Change Password?')
+						->reactive()
+						->visible(fn ($livewire) => $livewire instanceof Pages\EditUser),
+
+					TextInput::make('password')
+						->password()
+						->label('Password')
+						->dehydrateStateUsing(fn ($state) => filled($state) ? Hash::make($state) : null)
+						->dehydrated(fn ($state) => filled($state))
+						->required(fn ($livewire, $get) =>
+							$livewire instanceof Pages\CreateUser || $get('change_password'))
+						->visible(fn ($livewire, $get) =>
+							$livewire instanceof Pages\CreateUser || $get('change_password')),
+
+					TextInput::make('password_confirmation')
+						->password()
+						->label('Confirm Password')
+						->same('password')
+						->required(fn ($livewire, $get) =>
+							$livewire instanceof Pages\CreateUser || $get('change_password'))
+						->visible(fn ($livewire, $get) =>
+							$livewire instanceof Pages\CreateUser || $get('change_password')),
+				])
+				->columns(1)
+				->columnSpan('full'),
+			
+            TextInput::make('company_name')
+                ->required(),
+
+            Textarea::make('address')
+                ->rows(3)
+                ->placeholder('Multiline address...')
+                ->required(false),
+
+            TextInput::make('full_name')
+                ->label('Full Name')
+                ->required(),
+
+            TextInput::make('phone')
+                ->required(),
+
+            TextInput::make('vat_nr')
+                ->label('VAT Number')
+                ->nullable(),
+
+			FileUpload::make('logo_path')
+				->label('Company Logo')
+				->directory('logos')
+				->image()
+				->imageEditor()
+				->imageResizeMode('contain') // Required for resize to work
+				->imageResizeTargetWidth('300')
+				->imageResizeUpscale(false) // Prevents enlarging small images
+				->previewable(true)
+				->nullable(),
+
+
+
+            Select::make('role')
+                ->options([
+                    'admin' => 'Admin',
+                    'key_dealer' => 'Key Dealer',
+                    'sub_dealer' => 'Sub Dealer',
+                ])
+                ->required(),
+        ]);
+    }
+
+    public static function table(Tables\Table $table): Tables\Table
+    {
+        return $table
+            ->columns([
+                TextColumn::make('name'),
+                TextColumn::make('email'),
+                TextColumn::make('company_name'),
+                TextColumn::make('full_name'),
+                TextColumn::make('role')->badge(),
+            ])
+            ->defaultSort('created_at', 'desc');
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListUsers::route('/'),
+            'create' => Pages\CreateUser::route('/create'),
+            'edit' => Pages\EditUser::route('/{record}/edit'),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\CustomerResource\Pages\CreateCustomer.php ---
+<?php
+
+namespace App\Filament\Resources\CustomerResource\Pages;
+
+use App\Filament\Resources\CustomerResource;
+use Filament\Actions;
+use Filament\Resources\Pages\CreateRecord;
+
+class CreateCustomer extends CreateRecord
+{
+    protected static string $resource = CustomerResource::class;
+}
+
+
+--- FILE: app\Filament\Resources\CustomerResource\Pages\EditCustomer.php ---
+<?php
+
+namespace App\Filament\Resources\CustomerResource\Pages;
+
+use App\Filament\Resources\CustomerResource;
+use Filament\Actions;
+use Filament\Resources\Pages\EditRecord;
+
+class EditCustomer extends EditRecord
+{
+    protected static string $resource = CustomerResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\DeleteAction::make(),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\CustomerResource\Pages\ListCustomers.php ---
+<?php
+
+namespace App\Filament\Resources\CustomerResource\Pages;
+
+use App\Filament\Resources\CustomerResource;
+use Filament\Actions;
+use Filament\Resources\Pages\ListRecords;
+
+class ListCustomers extends ListRecords
+{
+    protected static string $resource = CustomerResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make(),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\QuoteResource\Pages\CreateQuote.php ---
+<?php
+
+namespace App\Filament\Resources\QuoteResource\Pages;
+
+use App\Filament\Resources\QuoteResource;
+use App\Models\Dealer;
+use App\Models\Customer;
+use App\Models\User;
+use Filament\Resources\Pages\CreateRecord;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Toggle;
+
+class CreateQuote extends CreateRecord
+{
+    protected static string $resource = QuoteResource::class;
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $data['user_id'] = auth()->id();
+        $data['status'] = 'Draft';
+        $data['is_pdf_generated'] = false;
+
+        // Default quote number logic (could be improved for concurrency)
+        $latestQuote = \App\Models\Quote::orderBy('id', 'desc')->first();
+        $nextId = $latestQuote ? $latestQuote->id + 1 : 1;
+        $data['quote_number'] = 'Q-' . str_pad($nextId, 5, '0', STR_PAD_LEFT);
+
+        return $data;
+    }
+
+    protected function getFormSchema(): array
+    {
+        return [
+            Grid::make()
+                ->schema([
+                    Select::make('dealer_id')
+                        ->label('Dealer')
+                        ->options(Dealer::pluck('dealer_name', 'id')->toArray())
+                        ->required(),
+
+                    Select::make('customer_id')
+                        ->label('Customer')
+                        ->options(Customer::pluck('company_name', 'id')->toArray())
+                        ->required(),
+
+                    DatePicker::make('quote_date')
+                        ->label('Quote Date')
+                        ->required()
+                        ->default(now()),
+
+                    Textarea::make('terms')
+                        ->label('Terms')
+                        ->default(json_encode(['Standard terms apply.']))
+                        ->rows(2),
+
+                    Toggle::make('is_pdf_generated')
+                        ->label('PDF Generated')
+                        ->default(false)
+                        ->hidden(),
+
+                    Hidden::make('status')->default('Draft'),
+                ])
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\QuoteResource\Pages\EditQuote.php ---
+<?php
+
+namespace App\Filament\Resources\QuoteResource\Pages;
+
+use App\Filament\Resources\QuoteResource;
+use App\Models\Dealer;
+use App\Models\Customer;
+use Filament\Resources\Pages\EditRecord;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Hidden;
+
+class EditQuote extends EditRecord
+{
+    protected static string $resource = QuoteResource::class;
+
+    protected function getFormSchema(): array
+    {
+        return [
+            Grid::make()
+                ->schema([
+                    Select::make('dealer_id')
+                        ->label('Dealer')
+                        ->options(Dealer::pluck('dealer_name', 'id')->toArray())
+                        ->required(),
+
+                    Select::make('customer_id')
+                        ->label('Customer')
+                        ->options(Customer::pluck('company_name', 'id')->toArray())
+                        ->required(),
+
+                    DatePicker::make('quote_date')
+                        ->label('Quote Date')
+                        ->required(),
+
+                    Textarea::make('terms')
+                        ->label('Terms')
+                        ->rows(2),
+
+                    Toggle::make('is_pdf_generated')
+                        ->label('PDF Generated'),
+
+                    Hidden::make('status'),
+                ])
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\QuoteResource\Pages\ListQuotes.php ---
+<?php
+
+namespace App\Filament\Resources\QuoteResource\Pages;
+
+use App\Filament\Resources\QuoteResource;
+use Filament\Resources\Pages\ListRecords;
+use Filament\Actions\CreateAction;
+
+class ListQuotes extends ListRecords
+{
+    protected static string $resource = QuoteResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            CreateAction::make(),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\UserResource\Pages\CreateUser.php ---
+<?php
+
+namespace App\Filament\Resources\UserResource\Pages;
+
+use App\Filament\Resources\UserResource;
+use Filament\Actions;
+use Filament\Resources\Pages\CreateRecord;
+
+class CreateUser extends CreateRecord
+{
+    protected static string $resource = UserResource::class;
+}
+
+
+--- FILE: app\Filament\Resources\UserResource\Pages\EditUser.php ---
+<?php
+
+namespace App\Filament\Resources\UserResource\Pages;
+
+use App\Filament\Resources\UserResource;
+use Filament\Actions;
+use Filament\Resources\Pages\EditRecord;
+
+class EditUser extends EditRecord
+{
+    protected static string $resource = UserResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\DeleteAction::make(),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\UserResource\Pages\ListUsers.php ---
+<?php
+
+namespace App\Filament\Resources\UserResource\Pages;
+
+use App\Filament\Resources\UserResource;
+use Filament\Actions;
+use Filament\Resources\Pages\ListRecords;
+
+class ListUsers extends ListRecords
+{
+    protected static string $resource = UserResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make(),
+        ];
+    }
+}
+
+
+===== FOLDER: app/Filament/Resources =====
+
+--- FILE: app\Filament\Resources\CustomerResource.php ---
+<?php
+
+namespace App\Filament\Resources;
+
+use App\Models\Customer;
+use Filament\Forms;
+use Filament\Tables;
+use Filament\Resources\Resource;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Hidden;
+use Filament\Tables\Columns\TextColumn;
+use App\Filament\Resources\CustomerResource\Pages;
+use Illuminate\Support\Facades\Auth;
+
+class CustomerResource extends Resource
+{
+    protected static ?string $model = Customer::class;
+    protected static ?string $navigationIcon = 'heroicon-o-user-group';
+    protected static ?string $navigationLabel = 'Customers';
+    protected static ?string $navigationGroup = 'CRM';
+
+public static function form(Forms\Form $form): Forms\Form
+{
+    return $form->schema([
+        TextInput::make('company_name')->required(),
+		Textarea::make('address')
+			->label('Address')
+			->rows(3)
+			->columnSpanFull()
+			->placeholder('Enter full address')
+			->required(false),
+        TextInput::make('contact_full_name')->required(),
+        TextInput::make('email')->email()->required(),
+        TextInput::make('phone')->required(),
+        TextInput::make('vendor_nr')->label('Vendor Number')->nullable(),
+        TextInput::make('vat_nr')->label('VAT Number')->nullable(),
+        Select::make('category')
+            ->options([
+                'Irigation' => 'Irigation',
+                'Consultant' => 'Consultant',
+                'Contractor' => 'Contractor',
+                'Government' => 'Government',
+                'Mine' => 'Mine',
+                'Quantity Surveying' => 'Quantity Surveying',
+                'Survey' => 'Survey',
+                'Town Planning' => 'Town Planning',
+                'Golf Course' => 'Golf Course',
+                'Municipality' => 'Municipality',
+                'Landscaping' => 'Landscaping',
+                'Architects' => 'Architects',
+                'Supplier' => 'Supplier',
+                'Farm' => 'Farm',
+                'Reseller' => 'Reseller',
+                'Other' => 'Other',
+            ])
+            ->required(),
+        Select::make('language')
+            ->options(['Afrikaans' => 'Afrikaans', 'English' => 'English', 'Other' => 'Other'])
+            ->default('English')
+            ->required(),
+        Select::make('type')
+            ->options(['Local' => 'Local', 'International' => 'International', 'Other' => 'Other'])
+            ->default('Local')
+            ->required(),
+        Select::make('currency')
+            ->options(['ZAR' => 'ZAR', 'USD' => 'USD', 'GBP' => 'GBP', 'EUR' => 'EUR', 'Other' => 'Other'])
+            ->default('ZAR')
+            ->required(),
+        Textarea::make('notes')
+			->label('Notes')
+			->rows(3)
+			->nullable()
+			->columnSpanFull(),
+		Hidden::make('created_by')
+			->default(fn () => Auth::id())
+			->required()
+			->dehydrated()
+			->hidden(),
+    ]);
+}
+
+public static function table(Tables\Table $table): Tables\Table
+{
+    return $table
+        ->columns([
+            Tables\Columns\TextColumn::make('company_name')
+                ->sortable()
+                ->searchable(),
+
+            Tables\Columns\TextColumn::make('contact_full_name')
+                ->searchable(),
+
+            Tables\Columns\TextColumn::make('email')
+                ->searchable(),
+
+            Tables\Columns\TextColumn::make('phone')
+                ->searchable(),
+
+            Tables\Columns\TextColumn::make('vendor_nr')
+                ->label('Vendor #')
+                ->searchable(),
+
+            Tables\Columns\TextColumn::make('category'),
+
+            Tables\Columns\TextColumn::make('language'),
+
+            Tables\Columns\TextColumn::make('currency'),
+
+            Tables\Columns\TextColumn::make('created_at')
+                ->label('Created')
+                ->dateTime()
+                ->sortable(),
+        ])
+        ->filters([
+            Tables\Filters\SelectFilter::make('category')
+                ->options([
+                    'Irigation' => 'Irigation',
+                    'Consultant' => 'Consultant',
+                    'Contractor' => 'Contractor',
+                    'Government' => 'Government',
+                    'Mine' => 'Mine',
+                    'Quantity Surveying' => 'Quantity Surveying',
+                    'Survey' => 'Survey',
+                    'Town Planning' => 'Town Planning',
+                    'Golf Course' => 'Golf Course',
+                    'Municipality' => 'Municipality',
+                    'Landscaping' => 'Landscaping',
+                    'Architects' => 'Architects',
+                    'Supplier' => 'Supplier',
+                    'Farm' => 'Farm',
+                    'Reseller' => 'Reseller',
+                    'Other' => 'Other',
+                ])
+                ->label('Category'),
+
+            Tables\Filters\SelectFilter::make('language')
+                ->options([
+                    'Afrikaans' => 'Afrikaans',
+                    'English' => 'English',
+                    'Other' => 'Other',
+                ])
+                ->label('Language'),
+
+            Tables\Filters\SelectFilter::make('currency')
+                ->options([
+                    'ZAR' => 'ZAR',
+                    'USD' => 'USD',
+                    'GBP' => 'GBP',
+                    'EUR' => 'EUR',
+                    'Other' => 'Other',
+                ])
+                ->label('Currency'),
+
+            Tables\Filters\Filter::make('created_at')
+                ->form([
+                    Forms\Components\DatePicker::make('from')->label('From'),
+                    Forms\Components\DatePicker::make('until')->label('Until'),
+                ])
+                ->query(function ($query, array $data) {
+                    return $query
+                        ->when($data['from'], fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
+                        ->when($data['until'], fn ($query, $date) => $query->whereDate('created_at', '<=', $date));
+                }),
+        ])
+        ->defaultSort('created_at', 'desc');
+}
+
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListCustomers::route('/'),
+            'create' => Pages\CreateCustomer::route('/create'),
+            'edit' => Pages\EditCustomer::route('/{record}/edit'),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\QuoteResource.php ---
+<?php
+
+namespace App\Filament\Resources;
+
+use App\Filament\Resources\QuoteResource\Pages;
+use App\Models\Quote;
+use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Table;
+
+class QuoteResource extends Resource
+{
+    protected static ?string $model = Quote::class;
+
+    protected static ?string $navigationIcon = 'heroicon-o-document-text';
+
+    protected static ?string $navigationGroup = 'CRM';
+
+    protected static ?string $navigationLabel = 'Quotes';
+
+    public static function form(Form $form): Form
+    {
+        return $form->schema([
+            Forms\Components\Select::make('subdealer_id')
+                ->relationship('subdealer', 'dealer_name')
+                ->required(),
+
+            Forms\Components\Select::make('customer_id')
+                ->relationship('customer', 'company_name')
+                ->required(),
+
+            Forms\Components\TextInput::make('quote_number')->required(),
+
+            Forms\Components\DatePicker::make('quote_date')->required(),
+
+            Forms\Components\Select::make('status')
+                ->options([
+                    'Draft' => 'Draft',
+                    'Sent' => 'Sent',
+                    'Accepted' => 'Accepted',
+                    'Declined' => 'Declined',
+                ])
+                ->required(),
+
+            Forms\Components\Textarea::make('terms')
+                ->rows(3),
+
+            Forms\Components\TextInput::make('subtotal')->numeric()->required(),
+
+            Forms\Components\TextInput::make('vat_amount')->numeric()->required(),
+
+            Forms\Components\TextInput::make('total_amount')->numeric()->required(),
+
+            Forms\Components\TextInput::make('currency')->default('ZAR'),
+
+            Forms\Components\Toggle::make('is_pdf_generated'),
+        ]);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return $table->columns([
+            Tables\Columns\TextColumn::make('quote_number')->searchable(),
+            Tables\Columns\TextColumn::make('subdealer.dealer_name')->label('Sub-Dealer')->sortable(),
+            Tables\Columns\TextColumn::make('customer.company_name')->label('Customer')->sortable(),
+            Tables\Columns\TextColumn::make('total_amount')->sortable(),
+            Tables\Columns\TextColumn::make('currency'),
+            Tables\Columns\TextColumn::make('status')->sortable(),
+            Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
+        ])
+        ->filters([])
+        ->actions([
+            Tables\Actions\ViewAction::make(),
+            Tables\Actions\EditAction::make(),
+        ])
+        ->bulkActions([
+            Tables\Actions\DeleteBulkAction::make(),
+        ]);
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListQuotes::route('/'),
+            'create' => Pages\CreateQuote::route('/create'),
+            'edit' => Pages\EditQuote::route('/{record}/edit'),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\UserResource.php ---
+<?php
+
+namespace App\Filament\Resources;
+
+use App\Models\User;
+use Filament\Forms;
+use Filament\Tables;
+use Filament\Resources\Resource;
+use Filament\Forms\Components\Group;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
+use Filament\Tables\Columns\TextColumn;
+use App\Filament\Resources\UserResource\Pages;
+use Illuminate\Support\Facades\Hash;
+
+class UserResource extends Resource
+{
+    protected static ?string $model = User::class;
+
+    protected static ?string $navigationIcon = 'heroicon-o-users';
+    protected static ?string $navigationGroup = 'Admin';
+
+    public static function form(Forms\Form $form): Forms\Form
+    {
+        return $form->schema([
+            TextInput::make('name')
+                ->label('Username')
+                ->required()
+				->unique(ignoreRecord: true),
+
+            TextInput::make('email')
+				->email()
+				->required()
+				->unique(ignoreRecord: true),
+
+
+			Section::make('User Password')
+				->schema([
+					Checkbox::make('change_password')
+						->label('Change Password?')
+						->reactive()
+						->visible(fn ($livewire) => $livewire instanceof Pages\EditUser),
+
+					TextInput::make('password')
+						->password()
+						->label('Password')
+						->dehydrateStateUsing(fn ($state) => filled($state) ? Hash::make($state) : null)
+						->dehydrated(fn ($state) => filled($state))
+						->required(fn ($livewire, $get) =>
+							$livewire instanceof Pages\CreateUser || $get('change_password'))
+						->visible(fn ($livewire, $get) =>
+							$livewire instanceof Pages\CreateUser || $get('change_password')),
+
+					TextInput::make('password_confirmation')
+						->password()
+						->label('Confirm Password')
+						->same('password')
+						->required(fn ($livewire, $get) =>
+							$livewire instanceof Pages\CreateUser || $get('change_password'))
+						->visible(fn ($livewire, $get) =>
+							$livewire instanceof Pages\CreateUser || $get('change_password')),
+				])
+				->columns(1)
+				->columnSpan('full'),
+			
+            TextInput::make('company_name')
+                ->required(),
+
+            Textarea::make('address')
+                ->rows(3)
+                ->placeholder('Multiline address...')
+                ->required(false),
+
+            TextInput::make('full_name')
+                ->label('Full Name')
+                ->required(),
+
+            TextInput::make('phone')
+                ->required(),
+
+            TextInput::make('vat_nr')
+                ->label('VAT Number')
+                ->nullable(),
+
+			FileUpload::make('logo_path')
+				->label('Company Logo')
+				->directory('logos')
+				->image()
+				->imageEditor()
+				->imageResizeMode('contain') // Required for resize to work
+				->imageResizeTargetWidth('300')
+				->imageResizeUpscale(false) // Prevents enlarging small images
+				->previewable(true)
+				->nullable(),
+
+
+
+            Select::make('role')
+                ->options([
+                    'admin' => 'Admin',
+                    'key_dealer' => 'Key Dealer',
+                    'sub_dealer' => 'Sub Dealer',
+                ])
+                ->required(),
+        ]);
+    }
+
+    public static function table(Tables\Table $table): Tables\Table
+    {
+        return $table
+            ->columns([
+                TextColumn::make('name'),
+                TextColumn::make('email'),
+                TextColumn::make('company_name'),
+                TextColumn::make('full_name'),
+                TextColumn::make('role')->badge(),
+            ])
+            ->defaultSort('created_at', 'desc');
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListUsers::route('/'),
+            'create' => Pages\CreateUser::route('/create'),
+            'edit' => Pages\EditUser::route('/{record}/edit'),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\CustomerResource\Pages\CreateCustomer.php ---
+<?php
+
+namespace App\Filament\Resources\CustomerResource\Pages;
+
+use App\Filament\Resources\CustomerResource;
+use Filament\Actions;
+use Filament\Resources\Pages\CreateRecord;
+
+class CreateCustomer extends CreateRecord
+{
+    protected static string $resource = CustomerResource::class;
+}
+
+
+--- FILE: app\Filament\Resources\CustomerResource\Pages\EditCustomer.php ---
+<?php
+
+namespace App\Filament\Resources\CustomerResource\Pages;
+
+use App\Filament\Resources\CustomerResource;
+use Filament\Actions;
+use Filament\Resources\Pages\EditRecord;
+
+class EditCustomer extends EditRecord
+{
+    protected static string $resource = CustomerResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\DeleteAction::make(),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\CustomerResource\Pages\ListCustomers.php ---
+<?php
+
+namespace App\Filament\Resources\CustomerResource\Pages;
+
+use App\Filament\Resources\CustomerResource;
+use Filament\Actions;
+use Filament\Resources\Pages\ListRecords;
+
+class ListCustomers extends ListRecords
+{
+    protected static string $resource = CustomerResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make(),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\QuoteResource\Pages\CreateQuote.php ---
+<?php
+
+namespace App\Filament\Resources\QuoteResource\Pages;
+
+use App\Filament\Resources\QuoteResource;
+use App\Models\Dealer;
+use App\Models\Customer;
+use App\Models\User;
+use Filament\Resources\Pages\CreateRecord;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Toggle;
+
+class CreateQuote extends CreateRecord
+{
+    protected static string $resource = QuoteResource::class;
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $data['user_id'] = auth()->id();
+        $data['status'] = 'Draft';
+        $data['is_pdf_generated'] = false;
+
+        // Default quote number logic (could be improved for concurrency)
+        $latestQuote = \App\Models\Quote::orderBy('id', 'desc')->first();
+        $nextId = $latestQuote ? $latestQuote->id + 1 : 1;
+        $data['quote_number'] = 'Q-' . str_pad($nextId, 5, '0', STR_PAD_LEFT);
+
+        return $data;
+    }
+
+    protected function getFormSchema(): array
+    {
+        return [
+            Grid::make()
+                ->schema([
+                    Select::make('dealer_id')
+                        ->label('Dealer')
+                        ->options(Dealer::pluck('dealer_name', 'id')->toArray())
+                        ->required(),
+
+                    Select::make('customer_id')
+                        ->label('Customer')
+                        ->options(Customer::pluck('company_name', 'id')->toArray())
+                        ->required(),
+
+                    DatePicker::make('quote_date')
+                        ->label('Quote Date')
+                        ->required()
+                        ->default(now()),
+
+                    Textarea::make('terms')
+                        ->label('Terms')
+                        ->default(json_encode(['Standard terms apply.']))
+                        ->rows(2),
+
+                    Toggle::make('is_pdf_generated')
+                        ->label('PDF Generated')
+                        ->default(false)
+                        ->hidden(),
+
+                    Hidden::make('status')->default('Draft'),
+                ])
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\QuoteResource\Pages\EditQuote.php ---
+<?php
+
+namespace App\Filament\Resources\QuoteResource\Pages;
+
+use App\Filament\Resources\QuoteResource;
+use App\Models\Dealer;
+use App\Models\Customer;
+use Filament\Resources\Pages\EditRecord;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Hidden;
+
+class EditQuote extends EditRecord
+{
+    protected static string $resource = QuoteResource::class;
+
+    protected function getFormSchema(): array
+    {
+        return [
+            Grid::make()
+                ->schema([
+                    Select::make('dealer_id')
+                        ->label('Dealer')
+                        ->options(Dealer::pluck('dealer_name', 'id')->toArray())
+                        ->required(),
+
+                    Select::make('customer_id')
+                        ->label('Customer')
+                        ->options(Customer::pluck('company_name', 'id')->toArray())
+                        ->required(),
+
+                    DatePicker::make('quote_date')
+                        ->label('Quote Date')
+                        ->required(),
+
+                    Textarea::make('terms')
+                        ->label('Terms')
+                        ->rows(2),
+
+                    Toggle::make('is_pdf_generated')
+                        ->label('PDF Generated'),
+
+                    Hidden::make('status'),
+                ])
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\QuoteResource\Pages\ListQuotes.php ---
+<?php
+
+namespace App\Filament\Resources\QuoteResource\Pages;
+
+use App\Filament\Resources\QuoteResource;
+use Filament\Resources\Pages\ListRecords;
+use Filament\Actions\CreateAction;
+
+class ListQuotes extends ListRecords
+{
+    protected static string $resource = QuoteResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            CreateAction::make(),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\UserResource\Pages\CreateUser.php ---
+<?php
+
+namespace App\Filament\Resources\UserResource\Pages;
+
+use App\Filament\Resources\UserResource;
+use Filament\Actions;
+use Filament\Resources\Pages\CreateRecord;
+
+class CreateUser extends CreateRecord
+{
+    protected static string $resource = UserResource::class;
+}
+
+
+--- FILE: app\Filament\Resources\UserResource\Pages\EditUser.php ---
+<?php
+
+namespace App\Filament\Resources\UserResource\Pages;
+
+use App\Filament\Resources\UserResource;
+use Filament\Actions;
+use Filament\Resources\Pages\EditRecord;
+
+class EditUser extends EditRecord
+{
+    protected static string $resource = UserResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\DeleteAction::make(),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\UserResource\Pages\ListUsers.php ---
+<?php
+
+namespace App\Filament\Resources\UserResource\Pages;
+
+use App\Filament\Resources\UserResource;
+use Filament\Actions;
+use Filament\Resources\Pages\ListRecords;
+
+class ListUsers extends ListRecords
+{
+    protected static string $resource = UserResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make(),
+        ];
+    }
+}
+
+
+===== FOLDER: app/Filament/Resources/CustomerResource =====
+
+--- FILE: app\Filament\Resources\CustomerResource\Pages\CreateCustomer.php ---
+<?php
+
+namespace App\Filament\Resources\CustomerResource\Pages;
+
+use App\Filament\Resources\CustomerResource;
+use Filament\Actions;
+use Filament\Resources\Pages\CreateRecord;
+
+class CreateCustomer extends CreateRecord
+{
+    protected static string $resource = CustomerResource::class;
+}
+
+
+--- FILE: app\Filament\Resources\CustomerResource\Pages\EditCustomer.php ---
+<?php
+
+namespace App\Filament\Resources\CustomerResource\Pages;
+
+use App\Filament\Resources\CustomerResource;
+use Filament\Actions;
+use Filament\Resources\Pages\EditRecord;
+
+class EditCustomer extends EditRecord
+{
+    protected static string $resource = CustomerResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\DeleteAction::make(),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\CustomerResource\Pages\ListCustomers.php ---
+<?php
+
+namespace App\Filament\Resources\CustomerResource\Pages;
+
+use App\Filament\Resources\CustomerResource;
+use Filament\Actions;
+use Filament\Resources\Pages\ListRecords;
+
+class ListCustomers extends ListRecords
+{
+    protected static string $resource = CustomerResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make(),
+        ];
+    }
+}
+
+
+===== FOLDER: app/Filament/Resources/CustomerResource/Pages =====
+
+--- FILE: app\Filament\Resources\CustomerResource\Pages\CreateCustomer.php ---
+<?php
+
+namespace App\Filament\Resources\CustomerResource\Pages;
+
+use App\Filament\Resources\CustomerResource;
+use Filament\Actions;
+use Filament\Resources\Pages\CreateRecord;
+
+class CreateCustomer extends CreateRecord
+{
+    protected static string $resource = CustomerResource::class;
+}
+
+
+--- FILE: app\Filament\Resources\CustomerResource\Pages\EditCustomer.php ---
+<?php
+
+namespace App\Filament\Resources\CustomerResource\Pages;
+
+use App\Filament\Resources\CustomerResource;
+use Filament\Actions;
+use Filament\Resources\Pages\EditRecord;
+
+class EditCustomer extends EditRecord
+{
+    protected static string $resource = CustomerResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\DeleteAction::make(),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\CustomerResource\Pages\ListCustomers.php ---
+<?php
+
+namespace App\Filament\Resources\CustomerResource\Pages;
+
+use App\Filament\Resources\CustomerResource;
+use Filament\Actions;
+use Filament\Resources\Pages\ListRecords;
+
+class ListCustomers extends ListRecords
+{
+    protected static string $resource = CustomerResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make(),
+        ];
+    }
+}
+
+
+===== FOLDER: app/Filament/Resources/UserResource =====
+
+--- FILE: app\Filament\Resources\UserResource\Pages\CreateUser.php ---
+<?php
+
+namespace App\Filament\Resources\UserResource\Pages;
+
+use App\Filament\Resources\UserResource;
+use Filament\Actions;
+use Filament\Resources\Pages\CreateRecord;
+
+class CreateUser extends CreateRecord
+{
+    protected static string $resource = UserResource::class;
+}
+
+
+--- FILE: app\Filament\Resources\UserResource\Pages\EditUser.php ---
+<?php
+
+namespace App\Filament\Resources\UserResource\Pages;
+
+use App\Filament\Resources\UserResource;
+use Filament\Actions;
+use Filament\Resources\Pages\EditRecord;
+
+class EditUser extends EditRecord
+{
+    protected static string $resource = UserResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\DeleteAction::make(),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\UserResource\Pages\ListUsers.php ---
+<?php
+
+namespace App\Filament\Resources\UserResource\Pages;
+
+use App\Filament\Resources\UserResource;
+use Filament\Actions;
+use Filament\Resources\Pages\ListRecords;
+
+class ListUsers extends ListRecords
+{
+    protected static string $resource = UserResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make(),
+        ];
+    }
+}
+
+
+===== FOLDER: app/Filament/Resources/UserResource/Pages =====
+
+--- FILE: app\Filament\Resources\UserResource\Pages\CreateUser.php ---
+<?php
+
+namespace App\Filament\Resources\UserResource\Pages;
+
+use App\Filament\Resources\UserResource;
+use Filament\Actions;
+use Filament\Resources\Pages\CreateRecord;
+
+class CreateUser extends CreateRecord
+{
+    protected static string $resource = UserResource::class;
+}
+
+
+--- FILE: app\Filament\Resources\UserResource\Pages\EditUser.php ---
+<?php
+
+namespace App\Filament\Resources\UserResource\Pages;
+
+use App\Filament\Resources\UserResource;
+use Filament\Actions;
+use Filament\Resources\Pages\EditRecord;
+
+class EditUser extends EditRecord
+{
+    protected static string $resource = UserResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\DeleteAction::make(),
+        ];
+    }
+}
+
+
+--- FILE: app\Filament\Resources\UserResource\Pages\ListUsers.php ---
+<?php
+
+namespace App\Filament\Resources\UserResource\Pages;
+
+use App\Filament\Resources\UserResource;
+use Filament\Actions;
+use Filament\Resources\Pages\ListRecords;
+
+class ListUsers extends ListRecords
+{
+    protected static string $resource = UserResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make(),
+        ];
+    }
+}
+
+
+===== FOLDER: app/Helpers =====
 
 --- FILE: app\Helpers\helpers.php ---
 <?php
@@ -1531,9 +3748,7 @@ class AdminPanelProvider extends PanelProvider
 
 
 
-
-===== FOLDER: app\Http =====
-
+===== FOLDER: app/Http =====
 
 --- FILE: app\Http\Controllers\Controller.php ---
 <?php
@@ -1558,7 +3773,11 @@ class CustomerController extends Controller
 {
     public function index() {
         return Customer::all();
+    
+    public function indexView() {
+        return view('customers.index');
     }
+}
 
     public function store(Request $request) {
         $data = $request->validate([
@@ -1575,20 +3794,40 @@ class CustomerController extends Controller
             'address' => 'nullable'
         ]);
         return Customer::create($data);
+    
+    public function indexView() {
+        return view('customers.index');
     }
+}
 
     public function show(Customer $customer) {
         return $customer;
+    
+    public function indexView() {
+        return view('customers.index');
     }
+}
 
     public function update(Request $request, Customer $customer) {
         $customer->update($request->all());
         return $customer;
+    
+    public function indexView() {
+        return view('customers.index');
     }
+}
 
     public function destroy(Customer $customer) {
         $customer->delete();
         return response()->noContent();
+    
+    public function indexView() {
+        return view('customers.index');
+    }
+}
+
+    public function indexView() {
+        return view('customers.index');
     }
 }
 
@@ -1620,7 +3859,11 @@ class DealerController extends Controller
 {
     public function index() {
         return Dealer::all();
+    
+    public function indexView() {
+        return view('dealers.index');
     }
+}
 
     public function store(Request $request) {
         $data = $request->validate([
@@ -1634,24 +3877,42 @@ class DealerController extends Controller
             'logo' => 'nullable'
         ]);
         return Dealer::create($data);
+    
+    public function indexView() {
+        return view('dealers.index');
     }
+}
 
     public function show(Dealer $dealer) {
         return $dealer;
+    
+    public function indexView() {
+        return view('dealers.index');
     }
+}
 
     public function update(Request $request, Dealer $dealer) {
         $dealer->update($request->all());
         return $dealer;
+    
+    public function indexView() {
+        return view('dealers.index');
     }
+}
 
     public function destroy(Dealer $dealer) {
         $dealer->delete();
         return response()->noContent();
+    
+    public function indexView() {
+        return view('dealers.index');
     }
 }
 
-
+    public function indexView() {
+        return view('dealers.index');
+    }
+}
 
 --- FILE: app\Http\Controllers\InvoiceController.php ---
 <?php
@@ -1665,7 +3926,11 @@ class InvoiceController extends Controller
 {
     public function index() {
         return Invoice::with('items')->get();
+    
+    public function showView($id) {
+        return view('invoices.show');
     }
+}
 
     public function store(Request $request) {
         $data = $request->validate([
@@ -1679,20 +3944,40 @@ class InvoiceController extends Controller
             'currency' => 'required|string'
         ]);
         return Invoice::create($data);
+    
+    public function showView($id) {
+        return view('invoices.show');
     }
+}
 
     public function show(Invoice $invoice) {
         return $invoice->load('items');
+    
+    public function showView($id) {
+        return view('invoices.show');
     }
+}
 
     public function update(Request $request, Invoice $invoice) {
         $invoice->update($request->all());
         return $invoice;
+    
+    public function showView($id) {
+        return view('invoices.show');
     }
+}
 
     public function destroy(Invoice $invoice) {
         $invoice->delete();
         return response()->noContent();
+    
+    public function showView($id) {
+        return view('invoices.show');
+    }
+}
+
+    public function showView($id) {
+        return view('invoices.show');
     }
 }
 
@@ -1822,102 +4107,63 @@ class ProductController extends Controller
 --- FILE: app\Http\Controllers\QuoteController.php ---
 <?php
 
-// QuoteController.php
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreQuoteRequest;
 use App\Models\Quote;
 use App\Models\QuoteItem;
-use App\Models\Invoice;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\RedirectResponse;
 
 class QuoteController extends Controller
 {
-    public function index() {
-        return Quote::with('items')->orderBy('created_at', 'desc')->get();
-    }
+    public function store(StoreQuoteRequest $request): RedirectResponse
+    {
+        DB::beginTransaction();
 
-    public function show($id) {
-        return Quote::with('items')->findOrFail($id);
-    }
-
-    public function store(Request $request) {
-        $validated = $request->validate([
-            'subdealer_id' => 'required|exists:users,id',
-            'customer_id' => 'required|exists:customers,id',
-            'user_id' => 'required|exists:users,id',
-            'quote_date' => 'required|date',
-            'terms' => 'nullable|array',
-            'currency' => 'required|string|max:10',
-        ]);
-
-        $nextNumber = Quote::max('id') + 1;
-        $quoteNumber = 'Q-' . str_pad((string)$nextNumber, 5, '0', STR_PAD_LEFT);
-
-        $quote = Quote::create([
-            'quote_number' => $quoteNumber,
-            'subdealer_id' => $validated['subdealer_id'],
-            'customer_id' => $validated['customer_id'],
-            'user_id' => $validated['user_id'],
-            'quote_date' => $validated['quote_date'],
-            'status' => 'Draft',
-            'terms' => $validated['terms'] ?? [],
-            'subtotal' => 0,
-            'vat_amount' => 0,
-            'total_amount' => 0,
-            'currency' => $validated['currency'],
-            'is_pdf_generated' => false,
-        ]);
-
-        return response()->json($quote, 201);
-    }
-
-    public function edit($id) {
-        $quote = Quote::with('items')->findOrFail($id);
-        return response()->json($quote);
-    }
-
-    public function update(Request $request, $id) {
-        $quote = Quote::with('items')->findOrFail($id);
-
-        $data = $request->all();
-        $quote->update($data);
-
-        $quote->total_amount = (float) $quote->subtotal + (float) $quote->vat_amount;
-        $quote->save();
-
-        return response()->json($quote);
-    }
-
-    public function convertToInvoice($id) {
-        $quote = Quote::with('items')->findOrFail($id);
-
-        DB::transaction(function () use ($quote) {
-            $invoice = Invoice::create([
-                'invoice_number' => 'INV-' . str_pad((string)(Invoice::max('id') + 1), 5, '0', STR_PAD_LEFT),
-                'customer_id' => $quote->customer_id,
-                'user_id' => $quote->user_id,
-                'quote_id' => $quote->id,
-                'invoice_date' => now(),
-                'status' => 'Pending',
-                'terms' => $quote->terms,
-                'subtotal' => $quote->subtotal,
-                'vat_amount' => $quote->vat_amount,
-                'total_amount' => $quote->total_amount,
-                'currency' => $quote->currency,
-                'converted_from_quote_at' => now(),
-                'is_pdf_generated' => false,
+        try {
+            $quote = Quote::create([
+                'dealer_id' => auth()->user()->dealer_id,
+                'customer_id' => $request->customer_id,
+                'quote_number' => 'Q-' . now()->format('YmdHis'),
+                'subtotal' => 0,
+                'vat_amount' => 0,
+                'total_amount' => 0,
             ]);
 
+            $subtotal = 0;
+            foreach ($request->product as $index => $productName) {
+                $qty = (int)$request->qty[$index];
+                $unitPrice = 100; // Placeholder: replace with real product price lookup
+                $lineTotal = $qty * $unitPrice;
+                $subtotal += $lineTotal;
+
+                QuoteItem::create([
+                    'quote_id' => $quote->id,
+                    'product_id' => 1, // TODO: fetch actual product ID
+                    'qty' => $qty,
+                    'unit_price' => $unitPrice,
+                    'line_discount' => 0,
+                ]);
+            }
+
+            $vat = $subtotal * 0.15;
             $quote->update([
-                'status' => 'Invoiced',
-                'converted_to_invoice_at' => now(),
+                'subtotal' => $subtotal,
+                'vat_amount' => $vat,
+                'total_amount' => $subtotal + $vat,
             ]);
-        });
 
-        return response()->json(['message' => 'Quote converted to Invoice!']);
+            DB::commit();
+
+            return redirect()->route('quotes.index')->with('status', 'Quote created successfully!');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Error creating quote: ' . $e->getMessage());
+        }
     }
 }
+
 
 --- FILE: app\Http\Controllers\RolesController.php ---
 <?php
@@ -2041,9 +4287,32 @@ class UserController extends Controller
 }
 
 
+--- FILE: app\Http\Requests\StoreQuoteRequest.php ---
+<?php
 
-===== FOLDER: app\Http\Controllers =====
+namespace App\Http\Requests;
 
+use Illuminate\Foundation\Http\FormRequest;
+
+class StoreQuoteRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'customer_id' => 'required|exists:customers,id',
+            'product.*' => 'required|string',
+            'qty.*' => 'required|numeric|min:1',
+        ];
+    }
+}
+
+
+===== FOLDER: app/Http/Controllers =====
 
 --- FILE: app\Http\Controllers\Controller.php ---
 <?php
@@ -2068,7 +4337,11 @@ class CustomerController extends Controller
 {
     public function index() {
         return Customer::all();
+    
+    public function indexView() {
+        return view('customers.index');
     }
+}
 
     public function store(Request $request) {
         $data = $request->validate([
@@ -2085,20 +4358,40 @@ class CustomerController extends Controller
             'address' => 'nullable'
         ]);
         return Customer::create($data);
+    
+    public function indexView() {
+        return view('customers.index');
     }
+}
 
     public function show(Customer $customer) {
         return $customer;
+    
+    public function indexView() {
+        return view('customers.index');
     }
+}
 
     public function update(Request $request, Customer $customer) {
         $customer->update($request->all());
         return $customer;
+    
+    public function indexView() {
+        return view('customers.index');
     }
+}
 
     public function destroy(Customer $customer) {
         $customer->delete();
         return response()->noContent();
+    
+    public function indexView() {
+        return view('customers.index');
+    }
+}
+
+    public function indexView() {
+        return view('customers.index');
     }
 }
 
@@ -2130,7 +4423,11 @@ class DealerController extends Controller
 {
     public function index() {
         return Dealer::all();
+    
+    public function indexView() {
+        return view('dealers.index');
     }
+}
 
     public function store(Request $request) {
         $data = $request->validate([
@@ -2144,24 +4441,42 @@ class DealerController extends Controller
             'logo' => 'nullable'
         ]);
         return Dealer::create($data);
+    
+    public function indexView() {
+        return view('dealers.index');
     }
+}
 
     public function show(Dealer $dealer) {
         return $dealer;
+    
+    public function indexView() {
+        return view('dealers.index');
     }
+}
 
     public function update(Request $request, Dealer $dealer) {
         $dealer->update($request->all());
         return $dealer;
+    
+    public function indexView() {
+        return view('dealers.index');
     }
+}
 
     public function destroy(Dealer $dealer) {
         $dealer->delete();
         return response()->noContent();
+    
+    public function indexView() {
+        return view('dealers.index');
     }
 }
 
-
+    public function indexView() {
+        return view('dealers.index');
+    }
+}
 
 --- FILE: app\Http\Controllers\InvoiceController.php ---
 <?php
@@ -2175,7 +4490,11 @@ class InvoiceController extends Controller
 {
     public function index() {
         return Invoice::with('items')->get();
+    
+    public function showView($id) {
+        return view('invoices.show');
     }
+}
 
     public function store(Request $request) {
         $data = $request->validate([
@@ -2189,20 +4508,40 @@ class InvoiceController extends Controller
             'currency' => 'required|string'
         ]);
         return Invoice::create($data);
+    
+    public function showView($id) {
+        return view('invoices.show');
     }
+}
 
     public function show(Invoice $invoice) {
         return $invoice->load('items');
+    
+    public function showView($id) {
+        return view('invoices.show');
     }
+}
 
     public function update(Request $request, Invoice $invoice) {
         $invoice->update($request->all());
         return $invoice;
+    
+    public function showView($id) {
+        return view('invoices.show');
     }
+}
 
     public function destroy(Invoice $invoice) {
         $invoice->delete();
         return response()->noContent();
+    
+    public function showView($id) {
+        return view('invoices.show');
+    }
+}
+
+    public function showView($id) {
+        return view('invoices.show');
     }
 }
 
@@ -2332,102 +4671,63 @@ class ProductController extends Controller
 --- FILE: app\Http\Controllers\QuoteController.php ---
 <?php
 
-// QuoteController.php
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreQuoteRequest;
 use App\Models\Quote;
 use App\Models\QuoteItem;
-use App\Models\Invoice;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\RedirectResponse;
 
 class QuoteController extends Controller
 {
-    public function index() {
-        return Quote::with('items')->orderBy('created_at', 'desc')->get();
-    }
+    public function store(StoreQuoteRequest $request): RedirectResponse
+    {
+        DB::beginTransaction();
 
-    public function show($id) {
-        return Quote::with('items')->findOrFail($id);
-    }
-
-    public function store(Request $request) {
-        $validated = $request->validate([
-            'subdealer_id' => 'required|exists:users,id',
-            'customer_id' => 'required|exists:customers,id',
-            'user_id' => 'required|exists:users,id',
-            'quote_date' => 'required|date',
-            'terms' => 'nullable|array',
-            'currency' => 'required|string|max:10',
-        ]);
-
-        $nextNumber = Quote::max('id') + 1;
-        $quoteNumber = 'Q-' . str_pad((string)$nextNumber, 5, '0', STR_PAD_LEFT);
-
-        $quote = Quote::create([
-            'quote_number' => $quoteNumber,
-            'subdealer_id' => $validated['subdealer_id'],
-            'customer_id' => $validated['customer_id'],
-            'user_id' => $validated['user_id'],
-            'quote_date' => $validated['quote_date'],
-            'status' => 'Draft',
-            'terms' => $validated['terms'] ?? [],
-            'subtotal' => 0,
-            'vat_amount' => 0,
-            'total_amount' => 0,
-            'currency' => $validated['currency'],
-            'is_pdf_generated' => false,
-        ]);
-
-        return response()->json($quote, 201);
-    }
-
-    public function edit($id) {
-        $quote = Quote::with('items')->findOrFail($id);
-        return response()->json($quote);
-    }
-
-    public function update(Request $request, $id) {
-        $quote = Quote::with('items')->findOrFail($id);
-
-        $data = $request->all();
-        $quote->update($data);
-
-        $quote->total_amount = (float) $quote->subtotal + (float) $quote->vat_amount;
-        $quote->save();
-
-        return response()->json($quote);
-    }
-
-    public function convertToInvoice($id) {
-        $quote = Quote::with('items')->findOrFail($id);
-
-        DB::transaction(function () use ($quote) {
-            $invoice = Invoice::create([
-                'invoice_number' => 'INV-' . str_pad((string)(Invoice::max('id') + 1), 5, '0', STR_PAD_LEFT),
-                'customer_id' => $quote->customer_id,
-                'user_id' => $quote->user_id,
-                'quote_id' => $quote->id,
-                'invoice_date' => now(),
-                'status' => 'Pending',
-                'terms' => $quote->terms,
-                'subtotal' => $quote->subtotal,
-                'vat_amount' => $quote->vat_amount,
-                'total_amount' => $quote->total_amount,
-                'currency' => $quote->currency,
-                'converted_from_quote_at' => now(),
-                'is_pdf_generated' => false,
+        try {
+            $quote = Quote::create([
+                'dealer_id' => auth()->user()->dealer_id,
+                'customer_id' => $request->customer_id,
+                'quote_number' => 'Q-' . now()->format('YmdHis'),
+                'subtotal' => 0,
+                'vat_amount' => 0,
+                'total_amount' => 0,
             ]);
 
+            $subtotal = 0;
+            foreach ($request->product as $index => $productName) {
+                $qty = (int)$request->qty[$index];
+                $unitPrice = 100; // Placeholder: replace with real product price lookup
+                $lineTotal = $qty * $unitPrice;
+                $subtotal += $lineTotal;
+
+                QuoteItem::create([
+                    'quote_id' => $quote->id,
+                    'product_id' => 1, // TODO: fetch actual product ID
+                    'qty' => $qty,
+                    'unit_price' => $unitPrice,
+                    'line_discount' => 0,
+                ]);
+            }
+
+            $vat = $subtotal * 0.15;
             $quote->update([
-                'status' => 'Invoiced',
-                'converted_to_invoice_at' => now(),
+                'subtotal' => $subtotal,
+                'vat_amount' => $vat,
+                'total_amount' => $subtotal + $vat,
             ]);
-        });
 
-        return response()->json(['message' => 'Quote converted to Invoice!']);
+            DB::commit();
+
+            return redirect()->route('quotes.index')->with('status', 'Quote created successfully!');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Error creating quote: ' . $e->getMessage());
+        }
     }
 }
+
 
 --- FILE: app\Http\Controllers\RolesController.php ---
 <?php
@@ -2551,9 +4851,7 @@ class UserController extends Controller
 }
 
 
-
-===== FOLDER: app\Mail =====
-
+===== FOLDER: app/Mail =====
 
 --- FILE: app\Mail\QuoteSentMail.php ---
 <?php
@@ -2589,9 +4887,7 @@ class QuoteSentMail extends Mailable
 }
 
 
-
-===== FOLDER: app\Models =====
-
+===== FOLDER: app/Models =====
 
 --- FILE: app\Models\Customer.php ---
 <?php
@@ -3039,9 +5335,277 @@ class UserRole extends Model
 }
 
 
+===== FOLDER: app/Providers =====
+
+--- FILE: app\Providers\AppServiceProvider.php ---
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+use Filament\Support\Facades\FilamentAsset;
+use Filament\Support\Assets\Css;
+
+class AppServiceProvider extends ServiceProvider
+{
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        //
+    }
+
+    /**
+     * Bootstrap any application services.
+     */
+	public function boot(): void
+	{
+		FilamentAsset::register([
+			Css::make('mms-brand', asset('css/mms-brand.css')),
+		]);
+	}
+}
+
+
+--- FILE: app\Providers\AuthServiceProvider.php ---
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\Gate;
+
+class AuthServiceProvider extends ServiceProvider
+{
+    /**
+     * The policy mappings for the application.
+     *
+     * @var array
+     */
+    protected $policies = [
+        // 'App\Models\Model' => 'App\Policies\ModelPolicy',
+    ];
+
+    /**
+     * Register any authentication / authorization services.
+     */
+    public function boot(): void
+    {
+        $this->registerPolicies();
+    }
+}
+
+
+--- FILE: app\Providers\EventServiceProvider.php ---
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+
+class EventServiceProvider extends ServiceProvider
+{
+    protected $listen = [
+        // Your events and listeners
+    ];
+
+    public function boot(): void
+    {
+        //
+    }
+}
+
+
+--- FILE: app\Providers\FilamentServiceProvider.php ---
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+use Filament\Support\Facades\FilamentAsset;
+use Filament\Support\Assets\Css;
+
+class FilamentServiceProvider extends ServiceProvider
+{
+    public function boot(): void
+    {
+        FilamentAsset::register([
+            Css::make('mms-brand', __DIR__ . '/../../public/css/mms-brand.css'),
+        ]);
+    }
+}
+
+
+--- FILE: app\Providers\RouteServiceProvider.php ---
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\Facades\Route;
+use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
+
+class RouteServiceProvider extends ServiceProvider
+{
+    /**
+     * This namespace is applied to your controller routes.
+     *
+     * @var string
+     */
+    protected $namespace = 'App\\Http\\Controllers';
+
+    /**
+     * Define your route model bindings, pattern filters, etc.
+     */
+    public function boot()
+    {
+        parent::boot();
+    }
+
+    /**
+     * Define the routes for the application.
+     */
+    public function map()
+    {
+        $this->mapWebRoutes();
+
+        // Add other maps if needed (e.g., API routes)
+    }
+
+    protected function mapWebRoutes()
+    {
+        Route::middleware('web')
+            ->namespace($this->namespace)
+            ->group(base_path('routes/web.php'));
+    }
+}
+
+
+--- FILE: app\Providers\Filament\AdminPanelProvider.php ---
+<?php
+
+namespace App\Providers\Filament;
+
+use Filament\Http\Middleware\Authenticate;
+use Filament\Http\Middleware\AuthenticateSession;
+use Filament\Http\Middleware\DisableBladeIconComponents;
+use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Pages;
+use Filament\Panel;
+use Filament\PanelProvider;
+use Filament\Support\Colors\Color;
+use Filament\Widgets;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Session\Middleware\StartSession;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
+
+class AdminPanelProvider extends PanelProvider
+{
+    public function panel(Panel $panel): Panel
+    {
+        return $panel
+            ->default()
+            ->id('admin')
+            ->path('admin')
+            ->login()
+            ->colors([
+                'primary' => Color::Amber,
+            ])
+            ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
+            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
+            ->pages([
+                Pages\Dashboard::class,
+            ])
+            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
+            ->widgets([
+                Widgets\AccountWidget::class,
+                Widgets\FilamentInfoWidget::class,
+            ])
+            ->middleware([
+                EncryptCookies::class,
+                AddQueuedCookiesToResponse::class,
+                StartSession::class,
+                AuthenticateSession::class,
+                ShareErrorsFromSession::class,
+                VerifyCsrfToken::class,
+                SubstituteBindings::class,
+                DisableBladeIconComponents::class,
+                DispatchServingFilamentEvent::class,
+            ])
+            ->authMiddleware([
+                Authenticate::class,
+            ]);
+    }
+}
+
+
+===== FOLDER: app/Providers/Filament =====
+
+--- FILE: app\Providers\Filament\AdminPanelProvider.php ---
+<?php
+
+namespace App\Providers\Filament;
+
+use Filament\Http\Middleware\Authenticate;
+use Filament\Http\Middleware\AuthenticateSession;
+use Filament\Http\Middleware\DisableBladeIconComponents;
+use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Pages;
+use Filament\Panel;
+use Filament\PanelProvider;
+use Filament\Support\Colors\Color;
+use Filament\Widgets;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Session\Middleware\StartSession;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
+
+class AdminPanelProvider extends PanelProvider
+{
+    public function panel(Panel $panel): Panel
+    {
+        return $panel
+            ->default()
+            ->id('admin')
+            ->path('admin')
+            ->login()
+            ->colors([
+                'primary' => Color::Amber,
+            ])
+            ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
+            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
+            ->pages([
+                Pages\Dashboard::class,
+            ])
+            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
+            ->widgets([
+                Widgets\AccountWidget::class,
+                Widgets\FilamentInfoWidget::class,
+            ])
+            ->middleware([
+                EncryptCookies::class,
+                AddQueuedCookiesToResponse::class,
+                StartSession::class,
+                AuthenticateSession::class,
+                ShareErrorsFromSession::class,
+                VerifyCsrfToken::class,
+                SubstituteBindings::class,
+                DisableBladeIconComponents::class,
+                DispatchServingFilamentEvent::class,
+            ])
+            ->authMiddleware([
+                Authenticate::class,
+            ]);
+    }
+}
+
 
 ===== FOLDER: bootstrap =====
-
 
 --- FILE: bootstrap\app.php ---
 <?php
@@ -3069,6 +5633,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
 return [
     App\Providers\AppServiceProvider::class,
+    App\Providers\FilamentServiceProvider::class,
     App\Providers\Filament\AdminPanelProvider::class,
 ];
 
@@ -3171,6 +5736,20 @@ return [
       0 => 'Kirschbaum\\PowerJoins\\PowerJoinsServiceProvider',
     ),
   ),
+  'laravel/sanctum' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    ),
+  ),
+  'laravel/tinker' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Laravel\\Tinker\\TinkerServiceProvider',
+    ),
+  ),
   'livewire/livewire' => 
   array (
     'aliases' => 
@@ -3218,42 +5797,49 @@ return [
     2 => 'Illuminate\\Bus\\BusServiceProvider',
     3 => 'Illuminate\\Cache\\CacheServiceProvider',
     4 => 'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider',
-    5 => 'Illuminate\\Concurrency\\ConcurrencyServiceProvider',
-    6 => 'Illuminate\\Cookie\\CookieServiceProvider',
-    7 => 'Illuminate\\Database\\DatabaseServiceProvider',
-    8 => 'Illuminate\\Encryption\\EncryptionServiceProvider',
-    9 => 'Illuminate\\Filesystem\\FilesystemServiceProvider',
-    10 => 'Illuminate\\Foundation\\Providers\\FoundationServiceProvider',
-    11 => 'Illuminate\\Hashing\\HashServiceProvider',
-    12 => 'Illuminate\\Mail\\MailServiceProvider',
-    13 => 'Illuminate\\Notifications\\NotificationServiceProvider',
-    14 => 'Illuminate\\Pagination\\PaginationServiceProvider',
-    15 => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
-    16 => 'Illuminate\\Pipeline\\PipelineServiceProvider',
-    17 => 'Illuminate\\Queue\\QueueServiceProvider',
-    18 => 'Illuminate\\Redis\\RedisServiceProvider',
-    19 => 'Illuminate\\Session\\SessionServiceProvider',
-    20 => 'Illuminate\\Translation\\TranslationServiceProvider',
-    21 => 'Illuminate\\Validation\\ValidationServiceProvider',
-    22 => 'Illuminate\\View\\ViewServiceProvider',
-    23 => 'Barryvdh\\DomPDF\\ServiceProvider',
-    24 => 'BladeUI\\Heroicons\\BladeHeroiconsServiceProvider',
-    25 => 'BladeUI\\Icons\\BladeIconsServiceProvider',
-    26 => 'Filament\\Actions\\ActionsServiceProvider',
-    27 => 'Filament\\FilamentServiceProvider',
-    28 => 'Filament\\Forms\\FormsServiceProvider',
-    29 => 'Filament\\Infolists\\InfolistsServiceProvider',
-    30 => 'Filament\\Notifications\\NotificationsServiceProvider',
-    31 => 'Filament\\Support\\SupportServiceProvider',
-    32 => 'Filament\\Tables\\TablesServiceProvider',
-    33 => 'Filament\\Widgets\\WidgetsServiceProvider',
-    34 => 'Kirschbaum\\PowerJoins\\PowerJoinsServiceProvider',
-    35 => 'Livewire\\LivewireServiceProvider',
-    36 => 'Carbon\\Laravel\\ServiceProvider',
-    37 => 'Termwind\\Laravel\\TermwindServiceProvider',
-    38 => 'RyanChandler\\BladeCaptureDirective\\BladeCaptureDirectiveServiceProvider',
-    39 => 'App\\Providers\\AppServiceProvider',
-    40 => 'App\\Providers\\Filament\\AdminPanelProvider',
+    5 => 'Illuminate\\Cookie\\CookieServiceProvider',
+    6 => 'Illuminate\\Database\\DatabaseServiceProvider',
+    7 => 'Illuminate\\Encryption\\EncryptionServiceProvider',
+    8 => 'Illuminate\\Filesystem\\FilesystemServiceProvider',
+    9 => 'Illuminate\\Foundation\\Providers\\FoundationServiceProvider',
+    10 => 'Illuminate\\Hashing\\HashServiceProvider',
+    11 => 'Illuminate\\Mail\\MailServiceProvider',
+    12 => 'Illuminate\\Notifications\\NotificationServiceProvider',
+    13 => 'Illuminate\\Pagination\\PaginationServiceProvider',
+    14 => 'Illuminate\\Pipeline\\PipelineServiceProvider',
+    15 => 'Illuminate\\Queue\\QueueServiceProvider',
+    16 => 'Illuminate\\Redis\\RedisServiceProvider',
+    17 => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
+    18 => 'Illuminate\\Session\\SessionServiceProvider',
+    19 => 'Illuminate\\Translation\\TranslationServiceProvider',
+    20 => 'Illuminate\\Validation\\ValidationServiceProvider',
+    21 => 'Illuminate\\View\\ViewServiceProvider',
+    22 => 'Barryvdh\\DomPDF\\ServiceProvider',
+    23 => 'BladeUI\\Heroicons\\BladeHeroiconsServiceProvider',
+    24 => 'BladeUI\\Icons\\BladeIconsServiceProvider',
+    25 => 'Filament\\Actions\\ActionsServiceProvider',
+    26 => 'Filament\\FilamentServiceProvider',
+    27 => 'Filament\\Forms\\FormsServiceProvider',
+    28 => 'Filament\\Infolists\\InfolistsServiceProvider',
+    29 => 'Filament\\Notifications\\NotificationsServiceProvider',
+    30 => 'Filament\\Support\\SupportServiceProvider',
+    31 => 'Filament\\Tables\\TablesServiceProvider',
+    32 => 'Filament\\Widgets\\WidgetsServiceProvider',
+    33 => 'Kirschbaum\\PowerJoins\\PowerJoinsServiceProvider',
+    34 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    35 => 'Laravel\\Tinker\\TinkerServiceProvider',
+    36 => 'Livewire\\LivewireServiceProvider',
+    37 => 'Carbon\\Laravel\\ServiceProvider',
+    38 => 'Termwind\\Laravel\\TermwindServiceProvider',
+    39 => 'RyanChandler\\BladeCaptureDirective\\BladeCaptureDirectiveServiceProvider',
+    40 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    41 => 'App\\Providers\\AppServiceProvider',
+    42 => 'App\\Providers\\AuthServiceProvider',
+    43 => 'App\\Providers\\EventServiceProvider',
+    44 => 'App\\Providers\\RouteServiceProvider',
+    45 => 'App\\Providers\\AppServiceProvider',
+    46 => 'App\\Providers\\FilamentServiceProvider',
+    47 => 'App\\Providers\\Filament\\AdminPanelProvider',
   ),
   'eager' => 
   array (
@@ -3279,12 +5865,19 @@ return [
     19 => 'Filament\\Tables\\TablesServiceProvider',
     20 => 'Filament\\Widgets\\WidgetsServiceProvider',
     21 => 'Kirschbaum\\PowerJoins\\PowerJoinsServiceProvider',
-    22 => 'Livewire\\LivewireServiceProvider',
-    23 => 'Carbon\\Laravel\\ServiceProvider',
-    24 => 'Termwind\\Laravel\\TermwindServiceProvider',
-    25 => 'RyanChandler\\BladeCaptureDirective\\BladeCaptureDirectiveServiceProvider',
-    26 => 'App\\Providers\\AppServiceProvider',
-    27 => 'App\\Providers\\Filament\\AdminPanelProvider',
+    22 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    23 => 'Livewire\\LivewireServiceProvider',
+    24 => 'Carbon\\Laravel\\ServiceProvider',
+    25 => 'Termwind\\Laravel\\TermwindServiceProvider',
+    26 => 'RyanChandler\\BladeCaptureDirective\\BladeCaptureDirectiveServiceProvider',
+    27 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    28 => 'App\\Providers\\AppServiceProvider',
+    29 => 'App\\Providers\\AuthServiceProvider',
+    30 => 'App\\Providers\\EventServiceProvider',
+    31 => 'App\\Providers\\RouteServiceProvider',
+    32 => 'App\\Providers\\AppServiceProvider',
+    33 => 'App\\Providers\\FilamentServiceProvider',
+    34 => 'App\\Providers\\Filament\\AdminPanelProvider',
   ),
   'deferred' => 
   array (
@@ -3416,14 +6009,11 @@ return [
     'Illuminate\\Database\\Console\\Migrations\\StatusCommand' => 'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider',
     'Illuminate\\Database\\Console\\Migrations\\MigrateMakeCommand' => 'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider',
     'composer' => 'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider',
-    'Illuminate\\Concurrency\\ConcurrencyManager' => 'Illuminate\\Concurrency\\ConcurrencyServiceProvider',
     'hash' => 'Illuminate\\Hashing\\HashServiceProvider',
     'hash.driver' => 'Illuminate\\Hashing\\HashServiceProvider',
     'mail.manager' => 'Illuminate\\Mail\\MailServiceProvider',
     'mailer' => 'Illuminate\\Mail\\MailServiceProvider',
     'Illuminate\\Mail\\Markdown' => 'Illuminate\\Mail\\MailServiceProvider',
-    'auth.password' => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
-    'auth.password.broker' => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
     'Illuminate\\Contracts\\Pipeline\\Hub' => 'Illuminate\\Pipeline\\PipelineServiceProvider',
     'pipeline' => 'Illuminate\\Pipeline\\PipelineServiceProvider',
     'queue' => 'Illuminate\\Queue\\QueueServiceProvider',
@@ -3433,11 +6023,14 @@ return [
     'queue.worker' => 'Illuminate\\Queue\\QueueServiceProvider',
     'redis' => 'Illuminate\\Redis\\RedisServiceProvider',
     'redis.connection' => 'Illuminate\\Redis\\RedisServiceProvider',
+    'auth.password' => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
+    'auth.password.broker' => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
     'translator' => 'Illuminate\\Translation\\TranslationServiceProvider',
     'translation.loader' => 'Illuminate\\Translation\\TranslationServiceProvider',
     'validator' => 'Illuminate\\Validation\\ValidationServiceProvider',
     'validation.presence' => 'Illuminate\\Validation\\ValidationServiceProvider',
     'Illuminate\\Contracts\\Validation\\UncompromisedVerifier' => 'Illuminate\\Validation\\ValidationServiceProvider',
+    'command.tinker' => 'Laravel\\Tinker\\TinkerServiceProvider',
   ),
   'when' => 
   array (
@@ -3453,16 +6046,10 @@ return [
     'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider' => 
     array (
     ),
-    'Illuminate\\Concurrency\\ConcurrencyServiceProvider' => 
-    array (
-    ),
     'Illuminate\\Hashing\\HashServiceProvider' => 
     array (
     ),
     'Illuminate\\Mail\\MailServiceProvider' => 
-    array (
-    ),
-    'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider' => 
     array (
     ),
     'Illuminate\\Pipeline\\PipelineServiceProvider' => 
@@ -3474,18 +6061,22 @@ return [
     'Illuminate\\Redis\\RedisServiceProvider' => 
     array (
     ),
+    'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider' => 
+    array (
+    ),
     'Illuminate\\Translation\\TranslationServiceProvider' => 
     array (
     ),
     'Illuminate\\Validation\\ValidationServiceProvider' => 
     array (
     ),
+    'Laravel\\Tinker\\TinkerServiceProvider' => 
+    array (
+    ),
   ),
 );
 
-
-===== FOLDER: bootstrap\cache =====
-
+===== FOLDER: bootstrap/cache =====
 
 --- FILE: bootstrap\cache\packages.php ---
 <?php return array (
@@ -3585,6 +6176,20 @@ return [
       0 => 'Kirschbaum\\PowerJoins\\PowerJoinsServiceProvider',
     ),
   ),
+  'laravel/sanctum' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    ),
+  ),
+  'laravel/tinker' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Laravel\\Tinker\\TinkerServiceProvider',
+    ),
+  ),
   'livewire/livewire' => 
   array (
     'aliases' => 
@@ -3632,42 +6237,49 @@ return [
     2 => 'Illuminate\\Bus\\BusServiceProvider',
     3 => 'Illuminate\\Cache\\CacheServiceProvider',
     4 => 'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider',
-    5 => 'Illuminate\\Concurrency\\ConcurrencyServiceProvider',
-    6 => 'Illuminate\\Cookie\\CookieServiceProvider',
-    7 => 'Illuminate\\Database\\DatabaseServiceProvider',
-    8 => 'Illuminate\\Encryption\\EncryptionServiceProvider',
-    9 => 'Illuminate\\Filesystem\\FilesystemServiceProvider',
-    10 => 'Illuminate\\Foundation\\Providers\\FoundationServiceProvider',
-    11 => 'Illuminate\\Hashing\\HashServiceProvider',
-    12 => 'Illuminate\\Mail\\MailServiceProvider',
-    13 => 'Illuminate\\Notifications\\NotificationServiceProvider',
-    14 => 'Illuminate\\Pagination\\PaginationServiceProvider',
-    15 => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
-    16 => 'Illuminate\\Pipeline\\PipelineServiceProvider',
-    17 => 'Illuminate\\Queue\\QueueServiceProvider',
-    18 => 'Illuminate\\Redis\\RedisServiceProvider',
-    19 => 'Illuminate\\Session\\SessionServiceProvider',
-    20 => 'Illuminate\\Translation\\TranslationServiceProvider',
-    21 => 'Illuminate\\Validation\\ValidationServiceProvider',
-    22 => 'Illuminate\\View\\ViewServiceProvider',
-    23 => 'Barryvdh\\DomPDF\\ServiceProvider',
-    24 => 'BladeUI\\Heroicons\\BladeHeroiconsServiceProvider',
-    25 => 'BladeUI\\Icons\\BladeIconsServiceProvider',
-    26 => 'Filament\\Actions\\ActionsServiceProvider',
-    27 => 'Filament\\FilamentServiceProvider',
-    28 => 'Filament\\Forms\\FormsServiceProvider',
-    29 => 'Filament\\Infolists\\InfolistsServiceProvider',
-    30 => 'Filament\\Notifications\\NotificationsServiceProvider',
-    31 => 'Filament\\Support\\SupportServiceProvider',
-    32 => 'Filament\\Tables\\TablesServiceProvider',
-    33 => 'Filament\\Widgets\\WidgetsServiceProvider',
-    34 => 'Kirschbaum\\PowerJoins\\PowerJoinsServiceProvider',
-    35 => 'Livewire\\LivewireServiceProvider',
-    36 => 'Carbon\\Laravel\\ServiceProvider',
-    37 => 'Termwind\\Laravel\\TermwindServiceProvider',
-    38 => 'RyanChandler\\BladeCaptureDirective\\BladeCaptureDirectiveServiceProvider',
-    39 => 'App\\Providers\\AppServiceProvider',
-    40 => 'App\\Providers\\Filament\\AdminPanelProvider',
+    5 => 'Illuminate\\Cookie\\CookieServiceProvider',
+    6 => 'Illuminate\\Database\\DatabaseServiceProvider',
+    7 => 'Illuminate\\Encryption\\EncryptionServiceProvider',
+    8 => 'Illuminate\\Filesystem\\FilesystemServiceProvider',
+    9 => 'Illuminate\\Foundation\\Providers\\FoundationServiceProvider',
+    10 => 'Illuminate\\Hashing\\HashServiceProvider',
+    11 => 'Illuminate\\Mail\\MailServiceProvider',
+    12 => 'Illuminate\\Notifications\\NotificationServiceProvider',
+    13 => 'Illuminate\\Pagination\\PaginationServiceProvider',
+    14 => 'Illuminate\\Pipeline\\PipelineServiceProvider',
+    15 => 'Illuminate\\Queue\\QueueServiceProvider',
+    16 => 'Illuminate\\Redis\\RedisServiceProvider',
+    17 => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
+    18 => 'Illuminate\\Session\\SessionServiceProvider',
+    19 => 'Illuminate\\Translation\\TranslationServiceProvider',
+    20 => 'Illuminate\\Validation\\ValidationServiceProvider',
+    21 => 'Illuminate\\View\\ViewServiceProvider',
+    22 => 'Barryvdh\\DomPDF\\ServiceProvider',
+    23 => 'BladeUI\\Heroicons\\BladeHeroiconsServiceProvider',
+    24 => 'BladeUI\\Icons\\BladeIconsServiceProvider',
+    25 => 'Filament\\Actions\\ActionsServiceProvider',
+    26 => 'Filament\\FilamentServiceProvider',
+    27 => 'Filament\\Forms\\FormsServiceProvider',
+    28 => 'Filament\\Infolists\\InfolistsServiceProvider',
+    29 => 'Filament\\Notifications\\NotificationsServiceProvider',
+    30 => 'Filament\\Support\\SupportServiceProvider',
+    31 => 'Filament\\Tables\\TablesServiceProvider',
+    32 => 'Filament\\Widgets\\WidgetsServiceProvider',
+    33 => 'Kirschbaum\\PowerJoins\\PowerJoinsServiceProvider',
+    34 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    35 => 'Laravel\\Tinker\\TinkerServiceProvider',
+    36 => 'Livewire\\LivewireServiceProvider',
+    37 => 'Carbon\\Laravel\\ServiceProvider',
+    38 => 'Termwind\\Laravel\\TermwindServiceProvider',
+    39 => 'RyanChandler\\BladeCaptureDirective\\BladeCaptureDirectiveServiceProvider',
+    40 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    41 => 'App\\Providers\\AppServiceProvider',
+    42 => 'App\\Providers\\AuthServiceProvider',
+    43 => 'App\\Providers\\EventServiceProvider',
+    44 => 'App\\Providers\\RouteServiceProvider',
+    45 => 'App\\Providers\\AppServiceProvider',
+    46 => 'App\\Providers\\FilamentServiceProvider',
+    47 => 'App\\Providers\\Filament\\AdminPanelProvider',
   ),
   'eager' => 
   array (
@@ -3693,12 +6305,19 @@ return [
     19 => 'Filament\\Tables\\TablesServiceProvider',
     20 => 'Filament\\Widgets\\WidgetsServiceProvider',
     21 => 'Kirschbaum\\PowerJoins\\PowerJoinsServiceProvider',
-    22 => 'Livewire\\LivewireServiceProvider',
-    23 => 'Carbon\\Laravel\\ServiceProvider',
-    24 => 'Termwind\\Laravel\\TermwindServiceProvider',
-    25 => 'RyanChandler\\BladeCaptureDirective\\BladeCaptureDirectiveServiceProvider',
-    26 => 'App\\Providers\\AppServiceProvider',
-    27 => 'App\\Providers\\Filament\\AdminPanelProvider',
+    22 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    23 => 'Livewire\\LivewireServiceProvider',
+    24 => 'Carbon\\Laravel\\ServiceProvider',
+    25 => 'Termwind\\Laravel\\TermwindServiceProvider',
+    26 => 'RyanChandler\\BladeCaptureDirective\\BladeCaptureDirectiveServiceProvider',
+    27 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    28 => 'App\\Providers\\AppServiceProvider',
+    29 => 'App\\Providers\\AuthServiceProvider',
+    30 => 'App\\Providers\\EventServiceProvider',
+    31 => 'App\\Providers\\RouteServiceProvider',
+    32 => 'App\\Providers\\AppServiceProvider',
+    33 => 'App\\Providers\\FilamentServiceProvider',
+    34 => 'App\\Providers\\Filament\\AdminPanelProvider',
   ),
   'deferred' => 
   array (
@@ -3830,14 +6449,11 @@ return [
     'Illuminate\\Database\\Console\\Migrations\\StatusCommand' => 'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider',
     'Illuminate\\Database\\Console\\Migrations\\MigrateMakeCommand' => 'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider',
     'composer' => 'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider',
-    'Illuminate\\Concurrency\\ConcurrencyManager' => 'Illuminate\\Concurrency\\ConcurrencyServiceProvider',
     'hash' => 'Illuminate\\Hashing\\HashServiceProvider',
     'hash.driver' => 'Illuminate\\Hashing\\HashServiceProvider',
     'mail.manager' => 'Illuminate\\Mail\\MailServiceProvider',
     'mailer' => 'Illuminate\\Mail\\MailServiceProvider',
     'Illuminate\\Mail\\Markdown' => 'Illuminate\\Mail\\MailServiceProvider',
-    'auth.password' => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
-    'auth.password.broker' => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
     'Illuminate\\Contracts\\Pipeline\\Hub' => 'Illuminate\\Pipeline\\PipelineServiceProvider',
     'pipeline' => 'Illuminate\\Pipeline\\PipelineServiceProvider',
     'queue' => 'Illuminate\\Queue\\QueueServiceProvider',
@@ -3847,11 +6463,14 @@ return [
     'queue.worker' => 'Illuminate\\Queue\\QueueServiceProvider',
     'redis' => 'Illuminate\\Redis\\RedisServiceProvider',
     'redis.connection' => 'Illuminate\\Redis\\RedisServiceProvider',
+    'auth.password' => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
+    'auth.password.broker' => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
     'translator' => 'Illuminate\\Translation\\TranslationServiceProvider',
     'translation.loader' => 'Illuminate\\Translation\\TranslationServiceProvider',
     'validator' => 'Illuminate\\Validation\\ValidationServiceProvider',
     'validation.presence' => 'Illuminate\\Validation\\ValidationServiceProvider',
     'Illuminate\\Contracts\\Validation\\UncompromisedVerifier' => 'Illuminate\\Validation\\ValidationServiceProvider',
+    'command.tinker' => 'Laravel\\Tinker\\TinkerServiceProvider',
   ),
   'when' => 
   array (
@@ -3867,16 +6486,10 @@ return [
     'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider' => 
     array (
     ),
-    'Illuminate\\Concurrency\\ConcurrencyServiceProvider' => 
-    array (
-    ),
     'Illuminate\\Hashing\\HashServiceProvider' => 
     array (
     ),
     'Illuminate\\Mail\\MailServiceProvider' => 
-    array (
-    ),
-    'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider' => 
     array (
     ),
     'Illuminate\\Pipeline\\PipelineServiceProvider' => 
@@ -3888,18 +6501,22 @@ return [
     'Illuminate\\Redis\\RedisServiceProvider' => 
     array (
     ),
+    'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider' => 
+    array (
+    ),
     'Illuminate\\Translation\\TranslationServiceProvider' => 
     array (
     ),
     'Illuminate\\Validation\\ValidationServiceProvider' => 
     array (
     ),
+    'Laravel\\Tinker\\TinkerServiceProvider' => 
+    array (
+    ),
   ),
 );
 
-
 ===== FOLDER: config =====
-
 
 --- FILE: config\app.php ---
 <?php
@@ -3916,7 +6533,6 @@ return [
     | other UI elements where an application name needs to be displayed.
     |
     */
-
     'name' => env('APP_NAME', 'Laravel'),
 
     /*
@@ -3926,10 +6542,9 @@ return [
     |
     | This value determines the "environment" your application is currently
     | running in. This may determine how you prefer to configure various
-    | services the application utilizes. Set this in your ".env" file.
+    | services your application utilizes. Set this in your ".env" file.
     |
     */
-
     'env' => env('APP_ENV', 'production'),
 
     /*
@@ -3942,7 +6557,6 @@ return [
     | application. If disabled, a simple generic error page is shown.
     |
     */
-
     'debug' => (bool) env('APP_DEBUG', false),
 
     /*
@@ -3952,11 +6566,22 @@ return [
     |
     | This URL is used by the console to properly generate URLs when using
     | the Artisan command line tool. You should set this to the root of
-    | the application so that it's available within Artisan commands.
+    | your application so that it is used when running Artisan tasks.
     |
     */
-
     'url' => env('APP_URL', 'http://localhost'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Asset URL
+    |--------------------------------------------------------------------------
+    |
+    | This URL is used by the asset helper for generating URLs to your
+    | application's assets. You can set this to a CDN or other asset
+    | host if required.
+    |
+    */
+    'asset_url' => env('ASSET_URL', null),
 
     /*
     |--------------------------------------------------------------------------
@@ -3964,11 +6589,10 @@ return [
     |--------------------------------------------------------------------------
     |
     | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | will be used by the PHP date and date-time functions. We have gone
+    | ahead and set this to a sensible default for you out of the box.
     |
     */
-
     'timezone' => 'UTC',
 
     /*
@@ -3977,54 +6601,143 @@ return [
     |--------------------------------------------------------------------------
     |
     | The application locale determines the default locale that will be used
-    | by Laravel's translation / localization methods. This option can be
-    | set to any locale for which you plan to have translation strings.
+    | by the translation service provider. You are free to set this value
+    | to any of the locales which will be supported by the application.
     |
     */
+    'locale' => 'en',
 
-    'locale' => env('APP_LOCALE', 'en'),
+    /*
+    |--------------------------------------------------------------------------
+    | Application Fallback Locale
+    |--------------------------------------------------------------------------
+    |
+    | The fallback locale determines the locale to use when the current one
+    | is not available. You may change the value to correspond to any of
+    | the language folders that are provided through your application.
+    |
+    */
+    'fallback_locale' => 'en',
 
-    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
-
-    'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
+    /*
+    |--------------------------------------------------------------------------
+    | Faker Locale
+    |--------------------------------------------------------------------------
+    |
+    | This locale will be used by the Faker PHP library when generating fake
+    | data for your database seeds. For example, this will be used to get
+    | localized telephone numbers, street address information and more.
+    |
+    */
+    'faker_locale' => 'en_US',
 
     /*
     |--------------------------------------------------------------------------
     | Encryption Key
     |--------------------------------------------------------------------------
     |
-    | This key is utilized by Laravel's encryption services and should be set
-    | to a random, 32 character string to ensure that all encrypted values
-    | are secure. You should do this prior to deploying the application.
+    | This key is used by the Illuminate encrypter service and should be set
+    | to a random, 32 character string, otherwise these encrypted strings
+    | will not be safe. Please do this before deploying an application!
     |
     */
+    'key' => env('APP_KEY'),
 
     'cipher' => 'AES-256-CBC',
 
-    'key' => env('APP_KEY'),
+    /*
+    |--------------------------------------------------------------------------
+    | Autoloaded Service Providers
+    |--------------------------------------------------------------------------
+    |
+    | The service providers listed here will be automatically loaded on the
+    | request to your application. Feel free to add your own services to
+    | this array to grant expanded functionality to your applications.
+    |
+    */
+    'providers' => [
+        Illuminate\Auth\AuthServiceProvider::class,
+        Illuminate\Broadcasting\BroadcastServiceProvider::class,
+        Illuminate\Bus\BusServiceProvider::class,
+        Illuminate\Cache\CacheServiceProvider::class,
+        Illuminate\Foundation\Providers\ConsoleSupportServiceProvider::class,
+        Illuminate\Cookie\CookieServiceProvider::class,
+        Illuminate\Database\DatabaseServiceProvider::class,
+        Illuminate\Encryption\EncryptionServiceProvider::class,
+        Illuminate\Filesystem\FilesystemServiceProvider::class,
+        Illuminate\Foundation\Providers\FoundationServiceProvider::class,
+        Illuminate\Hashing\HashServiceProvider::class,
+        Illuminate\Mail\MailServiceProvider::class,
+        Illuminate\Notifications\NotificationServiceProvider::class,
+        Illuminate\Pagination\PaginationServiceProvider::class,
+        Illuminate\Pipeline\PipelineServiceProvider::class,
+        Illuminate\Queue\QueueServiceProvider::class,
+        Illuminate\Redis\RedisServiceProvider::class,
+        Illuminate\Auth\Passwords\PasswordResetServiceProvider::class,
+        Illuminate\Session\SessionServiceProvider::class,
+        Illuminate\Translation\TranslationServiceProvider::class,
+        Illuminate\Validation\ValidationServiceProvider::class,
+        Illuminate\View\ViewServiceProvider::class,
 
-    'previous_keys' => [
-        ...array_filter(
-            explode(',', env('APP_PREVIOUS_KEYS', ''))
-        ),
+        // Package Service Providers...
+        Laravel\Sanctum\SanctumServiceProvider::class,
+
+        // Application Service Providers...
+        App\Providers\AppServiceProvider::class,
+        App\Providers\AuthServiceProvider::class,
+        // App\Providers\BroadcastServiceProvider::class,
+        App\Providers\EventServiceProvider::class,
+        App\Providers\RouteServiceProvider::class,
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Maintenance Mode Driver
+    | Class Aliases
     |--------------------------------------------------------------------------
     |
-    | These configuration options determine the driver used to determine and
-    | manage Laravel's "maintenance mode" status. The "cache" driver will
-    | allow maintenance mode to be controlled across multiple machines.
-    |
-    | Supported drivers: "file", "cache"
+    | This array of class aliases will be registered when this application
+    | is started. However, feel free to register as many as you wish as
+    | the aliases are "lazy" loaded so they don't hinder performance.
     |
     */
-
-    'maintenance' => [
-        'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
-        'store' => env('APP_MAINTENANCE_STORE', 'database'),
+    'aliases' => [
+        'App' => Illuminate\Support\Facades\App::class,
+        'Arr' => Illuminate\Support\Arr::class,
+        'Artisan' => Illuminate\Support\Facades\Artisan::class,
+        'Auth' => Illuminate\Support\Facades\Auth::class,
+        'Blade' => Illuminate\Support\Facades\Blade::class,
+        'Broadcast' => Illuminate\Support\Facades\Broadcast::class,
+        'Bus' => Illuminate\Support\Facades\Bus::class,
+        'Cache' => Illuminate\Support\Facades\Cache::class,
+        'Config' => Illuminate\Support\Facades\Config::class,
+        'Cookie' => Illuminate\Support\Facades\Cookie::class,
+        'Crypt' => Illuminate\Support\Facades\Crypt::class,
+        'Date' => Illuminate\Support\Facades\Date::class,
+        'DB' => Illuminate\Support\Facades\DB::class,
+        'Eloquent' => Illuminate\Database\Eloquent\Model::class,
+        'Event' => Illuminate\Support\Facades\Event::class,
+        'File' => Illuminate\Support\Facades\File::class,
+        'Gate' => Illuminate\Support\Facades\Gate::class,
+        'Hash' => Illuminate\Support\Facades\Hash::class,
+        'Http' => Illuminate\Support\Facades\Http::class,
+        'Lang' => Illuminate\Support\Facades\Lang::class,
+        'Log' => Illuminate\Support\Facades\Log::class,
+        'Mail' => Illuminate\Support\Facades\Mail::class,
+        'Notification' => Illuminate\Support\Facades\Notification::class,
+        'Password' => Illuminate\Support\Facades\Password::class,
+        'Queue' => Illuminate\Support\Facades\Queue::class,
+        'RateLimiter' => Illuminate\Support\Facades\RateLimiter::class,
+        'Redirect' => Illuminate\Support\Facades\Redirect::class,
+        'Request' => Illuminate\Support\Facades\Request::class,
+        'Response' => Illuminate\Support\Facades\Response::class,
+        'Route' => Illuminate\Support\Facades\Route::class,
+        'Schema' => Illuminate\Support\Facades\Schema::class,
+        'Session' => Illuminate\Support\Facades\Session::class,
+        'Storage' => Illuminate\Support\Facades\Storage::class,
+        'Str' => Illuminate\Support\Str::class,
+        'URL' => Illuminate\Support\Facades\URL::class,
+        'Validator' => Illuminate\Support\Facades\Validator::class,
+        'View' => Illuminate\Support\Facades\View::class,
     ],
 
 ];
@@ -5455,10 +8168,8 @@ return [
 ];
 
 
-
 ===== FOLDER: database =====
 
-
 --- FILE: database\factories\UserFactory.php ---
 <?php
 
@@ -6866,6 +9577,44 @@ return new class extends Migration
 };
 
 
+--- FILE: database\migrations\2025_06_15_132452_create_cache_table.php ---
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('cache', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->mediumText('value');
+            $table->integer('expiration');
+        });
+
+        Schema::create('cache_locks', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->string('owner');
+            $table->integer('expiration');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('cache');
+        Schema::dropIfExists('cache_locks');
+    }
+};
+
+
 --- FILE: database\seeders\CustomersSeeder.php ---
 <?php
 
@@ -7707,9 +10456,7 @@ class UsersSeeder extends Seeder
 }
 
 
-
-===== FOLDER: database\factories =====
-
+===== FOLDER: database/factories =====
 
 --- FILE: database\factories\UserFactory.php ---
 <?php
@@ -7758,9 +10505,7 @@ class UserFactory extends Factory
 }
 
 
-
-===== FOLDER: database\migrations =====
-
+===== FOLDER: database/migrations =====
 
 --- FILE: database\migrations\2025_01_01_000001_create_sub_dealer_regions_table.php ---
 <?php
@@ -9122,13 +11867,47 @@ return new class extends Migration
 };
 
 
+--- FILE: database\migrations\2025_06_15_132452_create_cache_table.php ---
+<?php
 
-===== FOLDER: database\schema =====
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('cache', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->mediumText('value');
+            $table->integer('expiration');
+        });
+
+        Schema::create('cache_locks', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->string('owner');
+            $table->integer('expiration');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('cache');
+        Schema::dropIfExists('cache_locks');
+    }
+};
 
 
+===== FOLDER: database/schema =====
 
-===== FOLDER: database\seeders =====
-
+===== FOLDER: database/seeders =====
 
 --- FILE: database\seeders\CustomersSeeder.php ---
 <?php
@@ -9971,9 +12750,42 @@ class UsersSeeder extends Seeder
 }
 
 
+===== FOLDER: docs =====
 
-===== FOLDER: resources\views =====
+===== FOLDER: Lovable Resources =====
 
+===== FOLDER: public =====
+
+--- FILE: public\index.php ---
+<?php
+
+use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
+
+define('LARAVEL_START', microtime(true));
+
+// Determine if the application is in maintenance mode...
+if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
+    require $maintenance;
+}
+
+// Register the Composer autoloader...
+require __DIR__.'/../vendor/autoload.php';
+
+// Bootstrap Laravel and handle the request...
+/** @var Application $app */
+$app = require_once __DIR__.'/../bootstrap/app.php';
+
+$app->handleRequest(Request::capture());
+
+
+===== FOLDER: public/css =====
+
+===== FOLDER: public/js =====
+
+===== FOLDER: public/js/filament =====
+
+===== FOLDER: resources =====
 
 --- FILE: resources\views\dashboard.blade.php ---
 <!DOCTYPE html>
@@ -10061,6 +12873,101 @@ class UsersSeeder extends Seeder
 </body>
 </html>
 
+--- FILE: resources\views\customers\index.blade.php ---
+@extends('layouts.app-with-sidebar')
+
+@section('content')
+<h1 class="mb-4">Customers</h1>
+@include('partials.alerts')
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Company</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>VAT Number</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{-- @foreach ($customers as $customer) --}}
+            <tr>
+                <td>Example Co.</td>
+                <td>John Doe</td>
+                <td>john@example.com</td>
+                <td>+123456789</td>
+                <td>1234567890</td>
+            </tr>
+            {{-- @endforeach --}}
+        </tbody>
+    </table>
+</div>
+@endsection
+
+--- FILE: resources\views\dashboards\dealer.blade.php ---
+{{-- resources/views/dashboards/dealer.blade.php --}}
+@extends('layouts.app-with-sidebar')
+
+@section('content')
+@php
+  $dealerId = Auth::user()->dealer_id ?? 'default';
+  $embedUrl = "https://mmsdesign-crm-dash.lovable.app/embed?filter=dealer/{$dealerId}";
+@endphp
+<div class="lovable-dashboard-wrapper position-relative" style="padding-top: 56.25%;">
+  <iframe
+    src="{{ $embedUrl }}"
+    style="position: absolute; top:0; left:0; width:100%; height:100%; border:none;"
+    title="MMS Design CRM Dealer Dashboard">
+  </iframe>
+</div>
+@endsection
+
+
+--- FILE: resources\views\dashboards\internal.blade.php ---
+{{-- resources/views/dashboards/internal.blade.php --}}
+@extends('layouts.app-with-sidebar')
+
+@section('content')
+<div class="lovable-dashboard-wrapper position-relative" style="padding-top: 56.25%;">
+  <iframe
+    src="https://mmsdesign-crm-dash.lovable.app/embed"
+    style="position: absolute; top:0; left:0; width:100%; height:100%; border:none;"
+    title="MMS Design CRM Internal Dashboard">
+  </iframe>
+</div>
+@endsection
+
+--- FILE: resources\views\dealers\index.blade.php ---
+@extends('layouts.app-with-sidebar')
+
+@section('content')
+<h1 class="mb-4">Dealers</h1>
+@include('partials.alerts')
+<div class="table-responsive">
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Dealer Name</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Phone</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{-- @foreach ($dealers as $dealer) --}}
+            <tr>
+                <td>Awesome Dealer</td>
+                <td>Jane Doe</td>
+                <td>jane@dealer.com</td>
+                <td>+987654321</td>
+            </tr>
+            {{-- @endforeach --}}
+        </tbody>
+    </table>
+</div>
+@endsection
+
 --- FILE: resources\views\emails\invoices\invoice_sent.blade.php ---
 @component('mail::message')
 # Invoice {{ $invoice->invoice_number }}
@@ -10125,14 +13032,123 @@ Best regards,
 @endcomponent
 
 
+--- FILE: resources\views\invoices\show.blade.php ---
+@extends('layouts.app-with-sidebar')
+
+@section('content')
+<h1 class="mb-4">Invoice Details</h1>
+@include('partials.alerts')
+<div class="card">
+    <div class="card-body">
+        <h5>Invoice #12345</h5>
+        <p><strong>Customer:</strong> Example Co.</p>
+        <p><strong>Total:</strong> R 12,345.00</p>
+        <a href="{{ asset('storage/invoices/sample.pdf') }}" target="_blank" class="btn btn-outline-primary">View PDF</a>
+    </div>
+</div>
+@endsection
+
+--- FILE: resources\views\layouts\app-with-sidebar.blade.php ---
+<!DOCTYPE html>
+<html lang="en" x-data="{ sidebarOpen: true, darkMode: false }" :class="{ 'dark': darkMode }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ config('app.name', 'MMS Design CRM') }}</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ asset('css/mms-brand.css') }}" rel="stylesheet">
+    <script src="https://unpkg.com/alpinejs" defer></script>
+
+    <style>
+        body {
+            font-family: 'Open Sans', sans-serif;
+        }
+        .sidebar {
+            width: 250px;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-closed {
+            transform: translateX(-100%);
+        }
+        .content {
+            margin-left: 250px;
+            transition: margin-left 0.3s ease;
+        }
+        .content-expanded {
+            margin-left: 0;
+        }
+        .dark body {
+            background-color: #1e1e1e;
+            color: #f0f0f0;
+        }
+        .dark .sidebar {
+            background-color: #2b2b2b;
+        }
+        .dark .content {
+            background-color: #1e1e1e;
+        }
+    </style>
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Sidebar -->
+        <div :class="{'sidebar': true, 'position-fixed h-100 bg-dark text-white p-3': true, 'sidebar-closed': !sidebarOpen}">
+            <h5>{{ config('app.name') }}</h5>
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link text-white" href="{{ route('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                <li class="nav-item d-flex justify-content-between align-items-center">
+                    <a class="nav-link text-white" href="{{ route('customers.index') }}"><i class="bi bi-people"></i> Customers</a>
+                    <span class="badge bg-danger">3</span>
+                </li>
+                <li class="nav-item d-flex justify-content-between align-items-center">
+                    <a class="nav-link text-white" href="{{ route('quotes.index') }}"><i class="bi bi-file-earmark-text"></i> Quotes</a>
+                    <span class="badge bg-primary">5</span>
+                </li>
+                <li class="nav-item"><a class="nav-link text-white" href="{{ route('invoices.index') }}"><i class="bi bi-receipt"></i> Invoices</a></li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div :class="{'content': true, 'content-expanded': !sidebarOpen}" class="flex-grow-1">
+            <nav class="navbar navbar-light bg-light border-bottom px-3">
+                <button class="btn btn-outline-success btn-sm me-2" @click="sidebarOpen = !sidebarOpen">
+                    <i class="bi bi-list"></i>
+                </button>
+                <button class="btn btn-outline-dark btn-sm" @click="darkMode = !darkMode">
+                    <i class="bi bi-moon-stars"></i>
+                </button>
+                <span class="ms-auto">Logged in as {{ Auth::user()->name ?? 'Guest' }}</span>
+            </nav>
+            <main class="p-4">
+                @if (session('status'))
+                    <div class="alert alert-success">{{ session('status') }}</div>
+                @endif
+                @if (session('error'))
+                    <div class="alert alert-danger">{{ session('error') }}</div>
+                @endif
+
+                @yield('content')
+            </main>
+        </div>
+    </div>
+</body>
+</html>
+
+
 --- FILE: resources\views\layouts\app.blade.php ---
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale() ?? 'en') }}">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="application-name" content="{{ config('app.name') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+	<meta name="description" content="MMS Design CRM - Manage dealers, customers, products, and more.">
+	<meta name="theme-color" content="#008e49">
+
 
     <title>{{ config('app.name', 'MMS Design CRM') }}</title>
 
@@ -10143,7 +13159,8 @@ Best regards,
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
 
     {{-- Custom CSS for MMS Design Brand --}}
-    <link href="{{ asset('css/mms-brand.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('css/mms-brand.css') }}">
+
 
     {{-- Bootstrap / Optional Vendor --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -10169,6 +13186,11 @@ Best regards,
 
     <main class="container-fluid py-4">
         @yield('content')
+		
+		@if (session('status'))
+			<div class="alert alert-success">{{ session('status') }}</div>
+		@endif
+
     </main>
 
     @include('partials.footer')
@@ -10179,97 +13201,323 @@ Best regards,
 </html>
 
 
+--- FILE: resources\views\partials\alerts.blade.php ---
+@if (session('status'))
+<div class="alert alert-success">{{ session('status') }}</div>
+@endif
+@if (session('error'))
+<div class="alert alert-danger">{{ session('error') }}</div>
+@endif
+
 --- FILE: resources\views\partials\footer.blade.php ---
-<?php
-
-namespace Database\Seeders;
-
-use Illuminate\Database\Seeder;
-use App\Models\Kit;
-
-class KitsSeeder extends Seeder
-{
-    public function run(): void
-    {
-        $kits = [
-            [
-                'name' => 'Starter Kit A',
-                'description' => 'This is a basic starter kit.',
-                'price' => 500.00,
-                'currency' => 'ZAR',
-                'vat' => true,
-                'discount' => false,
-                'bulk_discount' => true,
-                'shipping_fee_applicable' => true,
-                'list_contents' => 'Product 1, Product 2, Product 3',
-            ],
-            [
-                'name' => 'Advanced Kit B',
-                'description' => 'Advanced kit with extra features.',
-                'price' => 1200.00,
-                'currency' => 'USD',
-                'vat' => false,
-                'discount' => true,
-                'bulk_discount' => false,
-                'shipping_fee_applicable' => false,
-                'list_contents' => 'Product A, Product B, Product C, Product D',
-            ],
-            // Add more kits here
-        ];
-
-        foreach ($kits as $kit) {
-            Kit::create($kit);
-        }
-    }
-}
+{{-- resources/views/partials/footer.blade.php --}}
+<footer class="footer mt-auto py-3 bg-dark text-white text-center">
+    <div class="container">
+        <span>&copy; {{ date('Y') }} {{ config('app.name') }}. All rights reserved.</span>
+        <span class="d-block">Built with ❤️ by MMS Design</span>
+    </div>
+</footer>
 
 
 --- FILE: resources\views\partials\header.blade.php ---
-<?php
+{{-- resources/views/partials/header.blade.php --}}
+<header class="bg-light p-3 mb-3 border-bottom shadow-sm">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+        <h1 class="h4 m-0">@yield('page-title', 'Welcome')</h1>
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-secondary btn-sm" @click="darkMode = !darkMode">
+                <i class="bi bi-moon-stars"></i>
+            </button>
+            <span class="badge bg-success">{{ Auth::user()->name ?? 'Guest' }}</span>
+        </div>
+    </div>
+</header>
 
-namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\SubDealer;
+--- FILE: resources\views\partials\navbar.blade.php ---
+{{-- resources/views/partials/navbar.blade.php --}}
+<nav class="navbar navbar-expand-lg navbar-dark bg-success">
+    <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="{{ url('/') }}">
+            <img src="{{ asset('images/WebIcon.png') }}" alt="Logo" width="30" class="me-2">
+            {{ config('app.name') }}
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                </li>
+                @can('viewInternalDashboard')
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('dashboard.internal') }}"><i class="bi bi-bar-chart"></i> Internal Dashboard</a>
+                </li>
+                @endcan
+                @can('viewDealerDashboard')
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('dashboard.dealer') }}"><i class="bi bi-graph-up"></i> Dealer Dashboard</a>
+                </li>
+                @endcan
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('customers.index') }}"><i class="bi bi-people"></i> Customers</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('quotes.index') }}"><i class="bi bi-file-earmark-text"></i> Quotes</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('invoices.index') }}"><i class="bi bi-receipt"></i> Invoices</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle"></i> {{ Auth::user()->name ?? 'Account' }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                        <li><a class="dropdown-item" href="#">Profile</a></li>
+                        <li><a class="dropdown-item" href="#">Settings</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ route('logout') }}">Logout</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
 
-class SubDealersSeeder extends Seeder
-{
-    public function run(): void
-    {
-        $subDealers = [
-            [
-                'name' => 'SubDealer 1',
-                'email' => 'subdealer1@example.com',
-                'cell_phone' => '1234567890',
-                'address' => '123 Main St, City, Country',
-                'banking_details' => 'Bank XYZ, Account 123456789',
-                'vat_number' => 'VAT123456',
-                'logo_path' => 'logos/subdealer1.png',
-                'region' => 'Region A',
-            ],
-            [
-                'name' => 'SubDealer 2',
-                'email' => 'subdealer2@example.com',
-                'cell_phone' => '9876543210',
-                'address' => '456 Another St, City, Country',
-                'banking_details' => 'Bank ABC, Account 654321987',
-                'vat_number' => 'VAT654321',
-                'logo_path' => 'logos/subdealer2.png',
-                'region' => 'Region B',
-            ],
-            // Add more subdealers here
-        ];
+--- FILE: resources\views\quotes\create.blade.php ---
+@extends('layouts.app-with-sidebar')
 
-        foreach ($subDealers as $dealer) {
-            SubDealer::create($dealer);
-        }
-    }
+@section('content')
+<h1 class="mb-4">Create Quote</h1>
+@include('partials.alerts')
+<form method="POST" action="{{ route('quotes.store') }}">
+    @csrf
+    <div class="mb-3">
+        <label for="customer" class="form-label">Customer</label>
+        <select id="customer" name="customer_id" class="form-select">
+            {{-- @foreach ($customers as $customer) --}}
+            <option value="1">Example Co.</option>
+            {{-- @endforeach --}}
+        </select>
+    </div>
+    <div id="quote-items">
+        <div class="row g-2 mb-2">
+            <div class="col">
+                <input type="text" class="form-control" name="product[]" placeholder="Product Name">
+            </div>
+            <div class="col">
+                <input type="number" class="form-control" name="qty[]" placeholder="Quantity">
+            </div>
+        </div>
+    </div>
+    <button type="button" class="btn btn-secondary mb-3" onclick="addQuoteItem()">Add Item</button>
+    <button type="submit" class="btn btn-primary">Generate Quote</button>
+</form>
+
+<script>
+function addQuoteItem() {
+    const container = document.getElementById('quote-items');
+    const row = document.createElement('div');
+    row.className = 'row g-2 mb-2';
+    row.innerHTML = `
+        <div class="col">
+            <input type="text" class="form-control" name="product[]" placeholder="Product Name">
+        </div>
+        <div class="col">
+            <input type="number" class="form-control" name="qty[]" placeholder="Quantity">
+        </div>`;
+    container.appendChild(row);
 }
+</script>
+@endsection
+
+===== FOLDER: resources/css =====
+
+===== FOLDER: resources/js =====
+
+===== FOLDER: resources/views =====
+
+--- FILE: resources\views\dashboard.blade.php ---
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CRM Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container py-5">
+        <h1 class="mb-4">Welcome, {{ Auth::user()->name }}!</h1>
+
+        <div class="row g-3">
+
+            <div class="col-md-4">
+                <a href="{{ route('customers.index') }}" class="btn btn-primary w-100">
+                    Manage Customers
+                </a>
+            </div>
+
+            <div class="col-md-4">
+                <a href="{{ route('quotes.index') }}" class="btn btn-success w-100">
+                    Manage Quotes
+                </a>
+            </div>
+
+            <div class="col-md-4">
+                <a href="{{ route('invoices.index') }}" class="btn btn-warning w-100">
+                    Manage Invoices
+                </a>
+            </div>
+
+            <div class="col-md-4 mt-3">
+                <a href="{{ route('kits.index') }}" class="btn btn-info w-100">
+                    Manage Kits
+                </a>
+            </div>
+
+            <div class="col-md-4 mt-3">
+                <a href="{{ url('/') }}" class="btn btn-secondary w-100">
+                    Back to Welcome
+                </a>
+            </div>
+
+            <div class="col-md-4 mt-3">
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="btn btn-danger w-100">
+                        Logout
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>
+
+--- FILE: resources\views\welcome.blade.php ---
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Welcome to MMS Design CRM</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container text-center py-5">
+        <h1 class="mb-4">Welcome to MMS Design Dealer & Sub-Dealer CRM</h1>
+        <p class="lead">Manage your customers, quotes, invoices, and kits — all in one place.</p>
+
+        @if (Route::has('login'))
+            <div class="mt-4">
+                @auth
+                    <a href="{{ url('/dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
+                @else
+                    <a href="{{ route('login') }}" class="btn btn-success">Login</a>
+
+                    @if (Route::has('register'))
+                        <a href="{{ route('register') }}" class="btn btn-secondary ms-2">Register</a>
+                    @endif
+                @endauth
+            </div>
+        @endif
+    </div>
+</body>
+</html>
+
+--- FILE: resources\views\customers\index.blade.php ---
+@extends('layouts.app-with-sidebar')
+
+@section('content')
+<h1 class="mb-4">Customers</h1>
+@include('partials.alerts')
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Company</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>VAT Number</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{-- @foreach ($customers as $customer) --}}
+            <tr>
+                <td>Example Co.</td>
+                <td>John Doe</td>
+                <td>john@example.com</td>
+                <td>+123456789</td>
+                <td>1234567890</td>
+            </tr>
+            {{-- @endforeach --}}
+        </tbody>
+    </table>
+</div>
+@endsection
+
+--- FILE: resources\views\dashboards\dealer.blade.php ---
+{{-- resources/views/dashboards/dealer.blade.php --}}
+@extends('layouts.app-with-sidebar')
+
+@section('content')
+@php
+  $dealerId = Auth::user()->dealer_id ?? 'default';
+  $embedUrl = "https://mmsdesign-crm-dash.lovable.app/embed?filter=dealer/{$dealerId}";
+@endphp
+<div class="lovable-dashboard-wrapper position-relative" style="padding-top: 56.25%;">
+  <iframe
+    src="{{ $embedUrl }}"
+    style="position: absolute; top:0; left:0; width:100%; height:100%; border:none;"
+    title="MMS Design CRM Dealer Dashboard">
+  </iframe>
+</div>
+@endsection
 
 
+--- FILE: resources\views\dashboards\internal.blade.php ---
+{{-- resources/views/dashboards/internal.blade.php --}}
+@extends('layouts.app-with-sidebar')
 
-===== FOLDER: resources\views\emails =====
+@section('content')
+<div class="lovable-dashboard-wrapper position-relative" style="padding-top: 56.25%;">
+  <iframe
+    src="https://mmsdesign-crm-dash.lovable.app/embed"
+    style="position: absolute; top:0; left:0; width:100%; height:100%; border:none;"
+    title="MMS Design CRM Internal Dashboard">
+  </iframe>
+</div>
+@endsection
 
+--- FILE: resources\views\dealers\index.blade.php ---
+@extends('layouts.app-with-sidebar')
+
+@section('content')
+<h1 class="mb-4">Dealers</h1>
+@include('partials.alerts')
+<div class="table-responsive">
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Dealer Name</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Phone</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{-- @foreach ($dealers as $dealer) --}}
+            <tr>
+                <td>Awesome Dealer</td>
+                <td>Jane Doe</td>
+                <td>jane@dealer.com</td>
+                <td>+987654321</td>
+            </tr>
+            {{-- @endforeach --}}
+        </tbody>
+    </table>
+</div>
+@endsection
 
 --- FILE: resources\views\emails\invoices\invoice_sent.blade.php ---
 @component('mail::message')
@@ -10335,90 +13583,123 @@ Best regards,
 @endcomponent
 
 
+--- FILE: resources\views\invoices\show.blade.php ---
+@extends('layouts.app-with-sidebar')
 
-===== FOLDER: resources\views\emails\invoices =====
+@section('content')
+<h1 class="mb-4">Invoice Details</h1>
+@include('partials.alerts')
+<div class="card">
+    <div class="card-body">
+        <h5>Invoice #12345</h5>
+        <p><strong>Customer:</strong> Example Co.</p>
+        <p><strong>Total:</strong> R 12,345.00</p>
+        <a href="{{ asset('storage/invoices/sample.pdf') }}" target="_blank" class="btn btn-outline-primary">View PDF</a>
+    </div>
+</div>
+@endsection
 
+--- FILE: resources\views\layouts\app-with-sidebar.blade.php ---
+<!DOCTYPE html>
+<html lang="en" x-data="{ sidebarOpen: true, darkMode: false }" :class="{ 'dark': darkMode }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ config('app.name', 'MMS Design CRM') }}</title>
 
---- FILE: resources\views\emails\invoices\invoice_sent.blade.php ---
-@component('mail::message')
-# Invoice {{ $invoice->invoice_number }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ asset('css/mms-brand.css') }}" rel="stylesheet">
+    <script src="https://unpkg.com/alpinejs" defer></script>
 
-Dear {{ $invoice->customer->company_name }},
+    <style>
+        body {
+            font-family: 'Open Sans', sans-serif;
+        }
+        .sidebar {
+            width: 250px;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-closed {
+            transform: translateX(-100%);
+        }
+        .content {
+            margin-left: 250px;
+            transition: margin-left 0.3s ease;
+        }
+        .content-expanded {
+            margin-left: 0;
+        }
+        .dark body {
+            background-color: #1e1e1e;
+            color: #f0f0f0;
+        }
+        .dark .sidebar {
+            background-color: #2b2b2b;
+        }
+        .dark .content {
+            background-color: #1e1e1e;
+        }
+    </style>
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Sidebar -->
+        <div :class="{'sidebar': true, 'position-fixed h-100 bg-dark text-white p-3': true, 'sidebar-closed': !sidebarOpen}">
+            <h5>{{ config('app.name') }}</h5>
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link text-white" href="{{ route('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                <li class="nav-item d-flex justify-content-between align-items-center">
+                    <a class="nav-link text-white" href="{{ route('customers.index') }}"><i class="bi bi-people"></i> Customers</a>
+                    <span class="badge bg-danger">3</span>
+                </li>
+                <li class="nav-item d-flex justify-content-between align-items-center">
+                    <a class="nav-link text-white" href="{{ route('quotes.index') }}"><i class="bi bi-file-earmark-text"></i> Quotes</a>
+                    <span class="badge bg-primary">5</span>
+                </li>
+                <li class="nav-item"><a class="nav-link text-white" href="{{ route('invoices.index') }}"><i class="bi bi-receipt"></i> Invoices</a></li>
+            </ul>
+        </div>
 
-Thank you for your interest. Please find attached your invoice.
+        <!-- Main Content -->
+        <div :class="{'content': true, 'content-expanded': !sidebarOpen}" class="flex-grow-1">
+            <nav class="navbar navbar-light bg-light border-bottom px-3">
+                <button class="btn btn-outline-success btn-sm me-2" @click="sidebarOpen = !sidebarOpen">
+                    <i class="bi bi-list"></i>
+                </button>
+                <button class="btn btn-outline-dark btn-sm" @click="darkMode = !darkMode">
+                    <i class="bi bi-moon-stars"></i>
+                </button>
+                <span class="ms-auto">Logged in as {{ Auth::user()->name ?? 'Guest' }}</span>
+            </nav>
+            <main class="p-4">
+                @if (session('status'))
+                    <div class="alert alert-success">{{ session('status') }}</div>
+                @endif
+                @if (session('error'))
+                    <div class="alert alert-danger">{{ session('error') }}</div>
+                @endif
 
-If you have any questions, feel free to contact us.
-
-Best regards,  
-{{ $invoice->subdealer->company_name }}
-
-@endcomponent
-
-
---- FILE: resources\views\emails\invoices\sent.blade.php ---
-@component('mail::message')
-# {{ $invoice->invoice_type }} {{ $invoice->invoice_number }}
-
-Dear {{ $invoice->customer->company_name }},
-
-Please find attached your invoice.
-
-Thank you for your business!
-
-Kind regards,  
-{{ $invoice->subdealer->company_name }}
-
-@endcomponent
-
-
-
-===== FOLDER: resources\views\emails\quotes =====
-
-
---- FILE: resources\views\emails\quotes\quote_sent.blade.php ---
-@component('mail::message')
-# Quote {{ $quote->quote_number }}
-
-Dear {{ $quote->customer->company_name }},
-
-Thank you for your interest. Please find attached your quote.
-
-If you have any questions, feel free to contact us.
-
-Best regards,  
-{{ $quote->subdealer->company_name }}
-
-@endcomponent
-
-
---- FILE: resources\views\emails\quotes\sent.blade.php ---
-@component('mail::message')
-# Quote {{ $quote->quote_number }}
-
-Dear {{ $quote->customer->company_name }},
-
-Thank you for your interest. Please find attached your quote.
-
-If you have any questions, feel free to contact us.
-
-Best regards,  
-{{ $quote->subdealer->company_name }}
-
-@endcomponent
-
-
-
-===== FOLDER: resources\views\layouts =====
+                @yield('content')
+            </main>
+        </div>
+    </div>
+</body>
+</html>
 
 
 --- FILE: resources\views\layouts\app.blade.php ---
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale() ?? 'en') }}">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="application-name" content="{{ config('app.name') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+	<meta name="description" content="MMS Design CRM - Manage dealers, customers, products, and more.">
+	<meta name="theme-color" content="#008e49">
+
 
     <title>{{ config('app.name', 'MMS Design CRM') }}</title>
 
@@ -10429,7 +13710,8 @@ Best regards,
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
 
     {{-- Custom CSS for MMS Design Brand --}}
-    <link href="{{ asset('css/mms-brand.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('css/mms-brand.css') }}">
+
 
     {{-- Bootstrap / Optional Vendor --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -10455,6 +13737,11 @@ Best regards,
 
     <main class="container-fluid py-4">
         @yield('content')
+		
+		@if (session('status'))
+			<div class="alert alert-success">{{ session('status') }}</div>
+		@endif
+
     </main>
 
     @include('partials.footer')
@@ -10465,140 +13752,440 @@ Best regards,
 </html>
 
 
+--- FILE: resources\views\partials\alerts.blade.php ---
+@if (session('status'))
+<div class="alert alert-success">{{ session('status') }}</div>
+@endif
+@if (session('error'))
+<div class="alert alert-danger">{{ session('error') }}</div>
+@endif
 
-===== FOLDER: routes =====
-
-
---- FILE: routes\api.php ---
-<?php
-
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-
-// API Routes - MMS CRM - FINAL VERSION 🚀
-
-// PUBLIC TEST ROUTE (optional)
-Route::get('/ping', function () {
-    return response()->json(['status' => 'ok', 'message' => 'API is running 🚀']);
-});
-
-// AUTH MIDDLEWARE EXAMPLE (if needed)
-// Route::middleware('auth:sanctum')->group(function () {
-
-// --- QUOTES ---
-Route::get('/quotes', 'App\Http\Controllers\QuoteController@index');
-Route::get('/quotes/{id}', 'App\Http\Controllers\QuoteController@show');
-Route::post('/quotes', 'App\Http\Controllers\QuoteController@store');
-Route::put('/quotes/{id}', 'App\Http\Controllers\QuoteController@update');
-Route::delete('/quotes/{id}', 'App\Http\Controllers\QuoteController@destroy');
-
-// Special Quote Actions:
-Route::post('/quotes/{id}/add-item', 'App\Http\Controllers\QuoteController@addItem');
-Route::put('/quotes/{id}/mark-completed', 'App\Http\Controllers\QuoteController@markCompleted');
-Route::put('/quotes/{id}/convert-to-invoice', 'App\Http\Controllers\QuoteController@convertToInvoice');
-
-// --- INVOICES ---
-Route::get('/invoices', 'App\Http\Controllers\InvoiceController@index');
-Route::get('/invoices/{id}', 'App\Http\Controllers\InvoiceController@show');
-Route::put('/invoices/{id}', 'App\Http\Controllers\InvoiceController@update');
-Route::delete('/invoices/{id}', 'App\Http\Controllers\InvoiceController@destroy');
-
-// --- PRODUCTS ---
-Route::get('/products', 'App\Http\Controllers\ProductController@index');
-Route::get('/products/{id}', 'App\Http\Controllers\ProductController@show');
-Route::post('/products', 'App\Http\Controllers\ProductController@store');
-Route::put('/products/{id}', 'App\Http\Controllers\ProductController@update');
-Route::delete('/products/{id}', 'App\Http\Controllers\ProductController@destroy');
-
-// --- KITS ---
-Route::get('/kits', 'App\Http\Controllers\KitController@index');
-Route::get('/kits/{id}', 'App\Http\Controllers\KitController@show');
-Route::post('/kits', 'App\Http\Controllers\KitController@store');
-Route::put('/kits/{id}', 'App\Http\Controllers\KitController@update');
-Route::delete('/kits/{id}', 'App\Http\Controllers\KitController@destroy');
-
-// --- CUSTOMERS ---
-Route::get('/customers', 'App\Http\Controllers\CustomerController@index');
-Route::get('/customers/{id}', 'App\Http\Controllers\CustomerController@show');
-Route::post('/customers', 'App\Http\Controllers\CustomerController@store');
-Route::delete('/customers/{id}', 'App\Http\Controllers\CustomerController@destroy');
-
-// --- DEALERS ---
-Route::get('/dealers', 'App\Http\Controllers\DealerController@index');
-Route::get('/dealers/{id}', 'App\Http\Controllers\DealerController@show');
-Route::post('/dealers', 'App\Http\Controllers\DealerController@store');
-Route::delete('/dealers/{id}', 'App\Http\Controllers\DealerController@destroy');
-
-// --- SUB-DEALERS ---
-Route::get('/subdealers', 'App\Http\Controllers\SubDealerController@index');
-Route::get('/subdealers/{id}', 'App\Http\Controllers\SubDealerController@show');
-
-// --- USERS ---
-Route::get('/users', 'App\Http\Controllers\UserController@index');
-Route::get('/users/{id}', 'App\Http\Controllers\UserController@show');
-Route::post('/users', 'App\Http\Controllers\UserController@store');
-Route::delete('/users/{id}', 'App\Http\Controllers\UserController@destroy');
-
-// --- ROLES ---
-Route::get('/roles', 'App\Http\Controllers\RolesController@index');
-Route::post('/roles', 'App\Http\Controllers\RolesController@store');
-
-// --- PERMISSIONS ---
-Route::get('/permissions', 'App\Http\Controllers\PermissionsController@index');
-Route::post('/permissions', 'App\Http\Controllers\PermissionsController@store');
-
-// }); // END AUTH GROUP (if using Sanctum / Passport later)
+--- FILE: resources\views\partials\footer.blade.php ---
+{{-- resources/views/partials/footer.blade.php --}}
+<footer class="footer mt-auto py-3 bg-dark text-white text-center">
+    <div class="container">
+        <span>&copy; {{ date('Y') }} {{ config('app.name') }}. All rights reserved.</span>
+        <span class="d-block">Built with ❤️ by MMS Design</span>
+    </div>
+</footer>
 
 
---- FILE: routes\console.php ---
-<?php
+--- FILE: resources\views\partials\header.blade.php ---
+{{-- resources/views/partials/header.blade.php --}}
+<header class="bg-light p-3 mb-3 border-bottom shadow-sm">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+        <h1 class="h4 m-0">@yield('page-title', 'Welcome')</h1>
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-secondary btn-sm" @click="darkMode = !darkMode">
+                <i class="bi bi-moon-stars"></i>
+            </button>
+            <span class="badge bg-success">{{ Auth::user()->name ?? 'Guest' }}</span>
+        </div>
+    </div>
+</header>
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+--- FILE: resources\views\partials\navbar.blade.php ---
+{{-- resources/views/partials/navbar.blade.php --}}
+<nav class="navbar navbar-expand-lg navbar-dark bg-success">
+    <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="{{ url('/') }}">
+            <img src="{{ asset('images/WebIcon.png') }}" alt="Logo" width="30" class="me-2">
+            {{ config('app.name') }}
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                </li>
+                @can('viewInternalDashboard')
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('dashboard.internal') }}"><i class="bi bi-bar-chart"></i> Internal Dashboard</a>
+                </li>
+                @endcan
+                @can('viewDealerDashboard')
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('dashboard.dealer') }}"><i class="bi bi-graph-up"></i> Dealer Dashboard</a>
+                </li>
+                @endcan
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('customers.index') }}"><i class="bi bi-people"></i> Customers</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('quotes.index') }}"><i class="bi bi-file-earmark-text"></i> Quotes</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('invoices.index') }}"><i class="bi bi-receipt"></i> Invoices</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle"></i> {{ Auth::user()->name ?? 'Account' }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                        <li><a class="dropdown-item" href="#">Profile</a></li>
+                        <li><a class="dropdown-item" href="#">Settings</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ route('logout') }}">Logout</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+--- FILE: resources\views\quotes\create.blade.php ---
+@extends('layouts.app-with-sidebar')
+
+@section('content')
+<h1 class="mb-4">Create Quote</h1>
+@include('partials.alerts')
+<form method="POST" action="{{ route('quotes.store') }}">
+    @csrf
+    <div class="mb-3">
+        <label for="customer" class="form-label">Customer</label>
+        <select id="customer" name="customer_id" class="form-select">
+            {{-- @foreach ($customers as $customer) --}}
+            <option value="1">Example Co.</option>
+            {{-- @endforeach --}}
+        </select>
+    </div>
+    <div id="quote-items">
+        <div class="row g-2 mb-2">
+            <div class="col">
+                <input type="text" class="form-control" name="product[]" placeholder="Product Name">
+            </div>
+            <div class="col">
+                <input type="number" class="form-control" name="qty[]" placeholder="Quantity">
+            </div>
+        </div>
+    </div>
+    <button type="button" class="btn btn-secondary mb-3" onclick="addQuoteItem()">Add Item</button>
+    <button type="submit" class="btn btn-primary">Generate Quote</button>
+</form>
+
+<script>
+function addQuoteItem() {
+    const container = document.getElementById('quote-items');
+    const row = document.createElement('div');
+    row.className = 'row g-2 mb-2';
+    row.innerHTML = `
+        <div class="col">
+            <input type="text" class="form-control" name="product[]" placeholder="Product Name">
+        </div>
+        <div class="col">
+            <input type="number" class="form-control" name="qty[]" placeholder="Quantity">
+        </div>`;
+    container.appendChild(row);
+}
+</script>
+@endsection
+
+===== FOLDER: resources/views/emails =====
+
+--- FILE: resources\views\emails\invoices\invoice_sent.blade.php ---
+@component('mail::message')
+# Invoice {{ $invoice->invoice_number }}
+
+Dear {{ $invoice->customer->company_name }},
+
+Thank you for your interest. Please find attached your invoice.
+
+If you have any questions, feel free to contact us.
+
+Best regards,  
+{{ $invoice->subdealer->company_name }}
+
+@endcomponent
 
 
---- FILE: routes\web.php ---
-<?php
+--- FILE: resources\views\emails\invoices\sent.blade.php ---
+@component('mail::message')
+# {{ $invoice->invoice_type }} {{ $invoice->invoice_number }}
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\QuoteController;
-use App\Http\Controllers\InvoiceController;
-use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\SubDealerController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\KitController;
-use App\Http\Controllers\TermsConditionController;
+Dear {{ $invoice->customer->company_name }},
 
-// Dashboard
-Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+Please find attached your invoice.
 
-// Quotes
-Route::resource('quotes', QuoteController::class);
+Thank you for your business!
 
-// Invoices
-Route::resource('invoices', InvoiceController::class);
+Kind regards,  
+{{ $invoice->subdealer->company_name }}
 
-// Customers
-Route::resource('customers', CustomerController::class);
+@endcomponent
 
-// Sub-Dealers
-Route::resource('subdealers', SubDealerController::class);
 
-// Products
-Route::resource('products', ProductController::class);
+--- FILE: resources\views\emails\quotes\quote_sent.blade.php ---
+@component('mail::message')
+# Quote {{ $quote->quote_number }}
 
-// Kits
-Route::resource('kits', KitController::class);
+Dear {{ $quote->customer->company_name }},
 
-// Terms & Conditions
-Route::resource('terms', TermsConditionController::class);
+Thank you for your interest. Please find attached your quote.
 
-// 🚀 NEW ROUTES for sending emails
-Route::post('/quotes/{id}/send', [QuoteController::class, 'sendQuote']);
-Route::post('/invoices/{id}/send', [InvoiceController::class, 'sendInvoice']);
+If you have any questions, feel free to contact us.
 
+Best regards,  
+{{ $quote->subdealer->company_name }}
+
+@endcomponent
+
+
+--- FILE: resources\views\emails\quotes\sent.blade.php ---
+@component('mail::message')
+# Quote {{ $quote->quote_number }}
+
+Dear {{ $quote->customer->company_name }},
+
+Thank you for your interest. Please find attached your quote.
+
+If you have any questions, feel free to contact us.
+
+Best regards,  
+{{ $quote->subdealer->company_name }}
+
+@endcomponent
+
+
+===== FOLDER: resources/views/layouts =====
+
+--- FILE: resources\views\layouts\app-with-sidebar.blade.php ---
+<!DOCTYPE html>
+<html lang="en" x-data="{ sidebarOpen: true, darkMode: false }" :class="{ 'dark': darkMode }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ config('app.name', 'MMS Design CRM') }}</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ asset('css/mms-brand.css') }}" rel="stylesheet">
+    <script src="https://unpkg.com/alpinejs" defer></script>
+
+    <style>
+        body {
+            font-family: 'Open Sans', sans-serif;
+        }
+        .sidebar {
+            width: 250px;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-closed {
+            transform: translateX(-100%);
+        }
+        .content {
+            margin-left: 250px;
+            transition: margin-left 0.3s ease;
+        }
+        .content-expanded {
+            margin-left: 0;
+        }
+        .dark body {
+            background-color: #1e1e1e;
+            color: #f0f0f0;
+        }
+        .dark .sidebar {
+            background-color: #2b2b2b;
+        }
+        .dark .content {
+            background-color: #1e1e1e;
+        }
+    </style>
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Sidebar -->
+        <div :class="{'sidebar': true, 'position-fixed h-100 bg-dark text-white p-3': true, 'sidebar-closed': !sidebarOpen}">
+            <h5>{{ config('app.name') }}</h5>
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link text-white" href="{{ route('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                <li class="nav-item d-flex justify-content-between align-items-center">
+                    <a class="nav-link text-white" href="{{ route('customers.index') }}"><i class="bi bi-people"></i> Customers</a>
+                    <span class="badge bg-danger">3</span>
+                </li>
+                <li class="nav-item d-flex justify-content-between align-items-center">
+                    <a class="nav-link text-white" href="{{ route('quotes.index') }}"><i class="bi bi-file-earmark-text"></i> Quotes</a>
+                    <span class="badge bg-primary">5</span>
+                </li>
+                <li class="nav-item"><a class="nav-link text-white" href="{{ route('invoices.index') }}"><i class="bi bi-receipt"></i> Invoices</a></li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div :class="{'content': true, 'content-expanded': !sidebarOpen}" class="flex-grow-1">
+            <nav class="navbar navbar-light bg-light border-bottom px-3">
+                <button class="btn btn-outline-success btn-sm me-2" @click="sidebarOpen = !sidebarOpen">
+                    <i class="bi bi-list"></i>
+                </button>
+                <button class="btn btn-outline-dark btn-sm" @click="darkMode = !darkMode">
+                    <i class="bi bi-moon-stars"></i>
+                </button>
+                <span class="ms-auto">Logged in as {{ Auth::user()->name ?? 'Guest' }}</span>
+            </nav>
+            <main class="p-4">
+                @if (session('status'))
+                    <div class="alert alert-success">{{ session('status') }}</div>
+                @endif
+                @if (session('error'))
+                    <div class="alert alert-danger">{{ session('error') }}</div>
+                @endif
+
+                @yield('content')
+            </main>
+        </div>
+    </div>
+</body>
+</html>
+
+
+--- FILE: resources\views\layouts\app.blade.php ---
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale() ?? 'en') }}">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="application-name" content="{{ config('app.name') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+	<meta name="description" content="MMS Design CRM - Manage dealers, customers, products, and more.">
+	<meta name="theme-color" content="#008e49">
+
+
+    <title>{{ config('app.name', 'MMS Design CRM') }}</title>
+
+    {{-- Favicon --}}
+    <link rel="icon" type="image/png" href="{{ asset('images/WebIcon.png') }}">
+
+    {{-- External Fonts (Optional) --}}
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+
+    {{-- Custom CSS for MMS Design Brand --}}
+    <link rel="stylesheet" href="{{ asset('css/mms-brand.css') }}">
+
+
+    {{-- Bootstrap / Optional Vendor --}}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    {{-- App-wide Scripts/Styles --}}
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    {{-- Filament Styles if used --}}
+    @filamentStyles
+
+    <style>
+        body {
+            font-family: 'Open Sans', sans-serif;
+        }
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body class="bg-light text-dark">
+    @include('partials.navbar')
+
+    <main class="container-fluid py-4">
+        @yield('content')
+		
+		@if (session('status'))
+			<div class="alert alert-success">{{ session('status') }}</div>
+		@endif
+
+    </main>
+
+    @include('partials.footer')
+
+    {{-- Filament Scripts if used --}}
+    @filamentScripts
+</body>
+</html>
+
+
+===== FOLDER: resources/views/partials =====
+
+--- FILE: resources\views\partials\alerts.blade.php ---
+@if (session('status'))
+<div class="alert alert-success">{{ session('status') }}</div>
+@endif
+@if (session('error'))
+<div class="alert alert-danger">{{ session('error') }}</div>
+@endif
+
+--- FILE: resources\views\partials\footer.blade.php ---
+{{-- resources/views/partials/footer.blade.php --}}
+<footer class="footer mt-auto py-3 bg-dark text-white text-center">
+    <div class="container">
+        <span>&copy; {{ date('Y') }} {{ config('app.name') }}. All rights reserved.</span>
+        <span class="d-block">Built with ❤️ by MMS Design</span>
+    </div>
+</footer>
+
+
+--- FILE: resources\views\partials\header.blade.php ---
+{{-- resources/views/partials/header.blade.php --}}
+<header class="bg-light p-3 mb-3 border-bottom shadow-sm">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+        <h1 class="h4 m-0">@yield('page-title', 'Welcome')</h1>
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-secondary btn-sm" @click="darkMode = !darkMode">
+                <i class="bi bi-moon-stars"></i>
+            </button>
+            <span class="badge bg-success">{{ Auth::user()->name ?? 'Guest' }}</span>
+        </div>
+    </div>
+</header>
+
+
+--- FILE: resources\views\partials\navbar.blade.php ---
+{{-- resources/views/partials/navbar.blade.php --}}
+<nav class="navbar navbar-expand-lg navbar-dark bg-success">
+    <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="{{ url('/') }}">
+            <img src="{{ asset('images/WebIcon.png') }}" alt="Logo" width="30" class="me-2">
+            {{ config('app.name') }}
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                </li>
+                @can('viewInternalDashboard')
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('dashboard.internal') }}"><i class="bi bi-bar-chart"></i> Internal Dashboard</a>
+                </li>
+                @endcan
+                @can('viewDealerDashboard')
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('dashboard.dealer') }}"><i class="bi bi-graph-up"></i> Dealer Dashboard</a>
+                </li>
+                @endcan
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('customers.index') }}"><i class="bi bi-people"></i> Customers</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('quotes.index') }}"><i class="bi bi-file-earmark-text"></i> Quotes</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('invoices.index') }}"><i class="bi bi-receipt"></i> Invoices</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle"></i> {{ Auth::user()->name ?? 'Account' }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                        <li><a class="dropdown-item" href="#">Profile</a></li>
+                        <li><a class="dropdown-item" href="#">Settings</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ route('logout') }}">Logout</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>

@@ -5,13 +5,16 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\SubDealerController;
+use App\Http\Controllers\DealerController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\KitController;
 use App\Http\Controllers\TermsConditionController;
 
 // Dashboard
-Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+Route::get('/', function () {
+    return redirect('/admin');
+});
+
 
 // Quotes
 Route::resource('quotes', QuoteController::class);
@@ -22,8 +25,8 @@ Route::resource('invoices', InvoiceController::class);
 // Customers
 Route::resource('customers', CustomerController::class);
 
-// Sub-Dealers
-Route::resource('subdealers', SubDealerController::class);
+// Dealers
+Route::resource('dealers', DealerController::class);
 
 // Products
 Route::resource('products', ProductController::class);

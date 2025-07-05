@@ -4,12 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\User;
-use App\Models\Customer;
-use App\Models\QuoteItem;
-use App\Models\QuoteKit;
-use App\Models\QuoteStatus;
-use App\Models\TermsCondition;
 
 class Quote extends Model
 {
@@ -17,7 +11,7 @@ class Quote extends Model
 
     protected $fillable = [
         'quote_number',
-        'subdealer_id',
+        'dealer_id',
         'customer_id',
         'user_id',
         'quote_date',
@@ -36,39 +30,35 @@ class Quote extends Model
         'is_pdf_generated' => 'boolean',
     ];
 
-    // Relationships
-    public function customer()
+    /**
+     * Dealer who owns this quote.
+     */
+    public function dealer()
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Dealer::class, 'dealer_id');
     }
 
-    public function subdealer()
-    {
-        return $this->belongsTo(User::class, 'subdealer_id');
-    }
-
-    public function createdBy()
+    /**
+     * User who created the quote.
+     */
+    public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /**
+     * Customer for this quote.
+     */
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
+    /**
+     * Items in this quote.
+     */
     public function items()
     {
         return $this->hasMany(QuoteItem::class);
-    }
-
-    public function kits()
-    {
-        return $this->hasMany(QuoteKit::class);
-    }
-
-    public function status()
-    {
-        return $this->belongsTo(QuoteStatus::class, 'status', 'name');
-    }
-
-    public function termsConditions()
-    {
-        return $this->belongsToMany(TermsCondition::class, 'quote_terms_link');
     }
 }

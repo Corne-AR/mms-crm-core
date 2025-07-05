@@ -97,7 +97,11 @@ class UserResource extends Resource
 				->previewable(true)
 				->nullable(),
 
-
+            Select::make('dealer_id')
+                ->label('Dealer')
+                ->relationship('dealer', 'dealer_name')
+                ->searchable()
+                ->required(),
 
             Select::make('role')
                 ->options([

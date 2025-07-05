@@ -4,39 +4,39 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\User;
-use App\Models\SubDealerRegion; // this is your sub_dealer_regions model
+use App\Models\DealerRegion; // this is your dealer_regions model
 
-class SubDealersSeeder extends Seeder
+class DealersSeeder extends Seeder
 {
     public function run(): void
     {
-        $subDealers = [
+        $Dealers = [
             [
-                'name' => 'SubDealer 1',
-                'email' => 'subdealer1@example.com',
+                'name' => 'Dealer 1',
+                'email' => 'Dealer1@example.com',
                 'password' => bcrypt('password'), // add password!
                 'phone' => '1234567890',
                 'address' => '123 Main St, City, Country',
                 'banking_details' => 'Bank XYZ, Account 123456789',
                 'vat_number' => 'VAT123456',
-                'logo_path' => 'logos/subdealer1.png',
+                'logo_path' => 'logos/Dealer1.png',
                 'region_name' => 'Region A',
             ],
             [
-                'name' => 'SubDealer 2',
-                'email' => 'subdealer2@example.com',
+                'name' => 'Dealer 2',
+                'email' => 'Dealer2@example.com',
                 'password' => bcrypt('password'), // add password!
                 'phone' => '9876543210',
                 'address' => '456 Another St, City, Country',
                 'banking_details' => 'Bank ABC, Account 654321987',
                 'vat_number' => 'VAT654321',
-                'logo_path' => 'logos/subdealer2.png',
+                'logo_path' => 'logos/Dealer2.png',
                 'region_name' => 'Region B',
             ],
         ];
 
-        foreach ($subDealers as $dealer) {
-            $region = SubDealerRegion::where('name', $dealer['region_name'])->first();
+        foreach ($Dealers as $dealer) {
+            $region = DealerRegion::where('name', $dealer['region_name'])->first();
 
             User::create([
                 'name' => $dealer['name'],

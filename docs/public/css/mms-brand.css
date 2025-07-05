@@ -1,72 +1,65 @@
-/* mms-brand.css - Custom branding for MMS Design CRM */
+/* MMS Design CRM - Color Palette */
+
+:root {
+  --primary-green: #008e49;
+  --accent-lime: #a6ce39;
+  --dark-green-hover: #006837;
+  --primary-grey: #4d4d50;
+  --dark-grey-hover: #2f2f30;
+  --page-background: #f8f9fa;
+  --text-color: #333333;
+}
 
 body {
-    background-color: #f8f9fa;
-    color: #333;
-    font-family: 'Open Sans', sans-serif;
+  background-color: var(--page-background);
+  color: var(--text-color);
+  font-family: 'Open Sans', sans-serif;
 }
 
 .navbar {
-    background-color: #008e49 !important;
+  background-color: var(--primary-green);
 }
 
 .navbar .nav-link,
 .navbar-brand {
-    color: #fff !important;
+  color: white;
 }
 
 .navbar .nav-link:hover,
 .navbar-brand:hover {
-    color: #a6ce39 !important;
+  color: var(--accent-lime);
 }
 
 .btn-primary {
-    background-color: #008e49;
-    border-color: #008e49;
+  background-color: var(--primary-green);
+  border-color: var(--primary-green);
 }
 
 .btn-primary:hover {
-    background-color: #006837;
-    border-color: #006837;
+  background-color: var(--dark-green-hover);
+  border-color: var(--dark-green-hover);
 }
 
 .btn-secondary {
-    background-color: #4d4d50;
-    border-color: #4d4d50;
+  background-color: var(--primary-grey);
+  border-color: var(--primary-grey);
 }
 
 .btn-secondary:hover {
-    background-color: #2f2f30;
-    border-color: #2f2f30;
+  background-color: var(--dark-grey-hover);
+  border-color: var(--dark-grey-hover);
 }
 
 footer {
-    background-color: #4d4d50;
-    color: #fff;
-    padding: 1rem 0;
-    text-align: center;
-}
-
-.card-header,
-.card-footer {
-    background-color: #a6ce39;
-    color: #fff;
-}
-
-.card {
-    border: 1px solid #ddd;
-}
-
-.table thead {
-    background-color: #008e49;
-    color: #fff;
+  background-color: var(--primary-grey);
+  color: white;
+  text-align: center;
 }
 
 a {
-    color: #008e49;
+  color: var(--primary-green);
 }
 
 a:hover {
-    color: #006837;
-    text-decoration: underline;
+  color: var(--dark-green-hover);
 }

@@ -8,11 +8,6 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-use App\Models\SubDealerRegion;
-use App\Models\UserRole;
-use App\Models\Quote;
-use App\Models\Invoice;
-
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
@@ -21,14 +16,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'phone',
-        'address',
-        'banking_details',
-        'vat_number',
-        'logo_path',
-        'role',
-        'region_id',
-        'role_id',
+        'dealer_id',
     ];
 
     protected $hidden = [
@@ -40,24 +28,21 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
     ];
 
-    // Relationships
-    public function region()
+    // ✅ Correct dealer relationship
+    public function dealer()
     {
-        return $this->belongsTo(SubDealerRegion::class);
+        return $this->belongsTo(Dealer::class, 'dealer_id');
     }
 
+    // 🟡 Optional: if you have roles
     public function role()
     {
         return $this->belongsTo(UserRole::class);
     }
 
+    // 🟡 Optional: if you want to access quotes created by this user
     public function quotes()
     {
         return $this->hasMany(Quote::class);
-    }
-
-    public function invoices()
-    {
-        return $this->hasMany(Invoice::class);
     }
 }

@@ -25,22 +25,32 @@ class QuoteController extends Controller
             ]);
 
             $subtotal = 0;
-            foreach ($request->product as $index => $productName) {
-                $qty = (int)$request->qty[$index];
-                $unitPrice = 100; // Placeholder: replace with real product price lookup
-                $lineTotal = $qty * $unitPrice;
-                $subtotal += $lineTotal;
+			
+			foreach ($request->product as $index => $productName) {
+				$qty = (int) $request->qty[$index];
 
-                QuoteItem::create([
-                    'quote_id' => $quote->id,
-                    'product_id' => 1, // TODO: fetch actual product ID
-                    'qty' => $qty,
-                    'unit_price' => $unitPrice,
-                    'line_discount' => 0,
-                ]);
-            }
+				// Look up the product in DB
+				$product = \App\Models\Product::where('name', $productName)->first();
 
-            $vat = $subtotal * 0.15;
+				if (!$product) {
+					throw new \Exception("Product '{$productName}' not found.");
+				}
+
+				$unitPrice = $product->price ?? 0;
+				$lineTotal = $qty * $unitPrice;
+				$subtotal += $lineTotal;
+
+				QuoteItem::create([
+					'quote_id' => $quote->id,
+					'product_id' => $product->id,
+					'qty' => $qty,
+					'unit_price' => $unitPrice,
+					'line_discount' => 0,
+				]);
+			}
+			
+            $vat = $subtotal * 0.15; //Vat rate 0.15 should not be hard coded, 	remeber to add the VAT variable in the admin settings
+			
             $quote->update([
                 'subtotal' => $subtotal,
                 'vat_amount' => $vat,

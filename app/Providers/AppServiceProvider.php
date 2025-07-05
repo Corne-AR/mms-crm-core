@@ -3,7 +3,8 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Gate;
+use Filament\Support\Facades\FilamentAsset;
+use Filament\Support\Assets\Css;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -18,16 +19,10 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
-	public function boot()
+	public function boot(): void
 	{
-		$this->registerPolicies();
-
-		Gate::define('viewInternalDashboard', function ($user) {
-			return $user->role === 'admin' || $user->role === 'internal';
-		});
-
-		Gate::define('viewDealerDashboard', function ($user) {
-			return $user->role === 'dealer' || $user->role === 'sub-dealer';
-		});
+		FilamentAsset::register([
+			Css::make('mms-brand', asset('css/mms-brand.css')),
+		]);
 	}
 }

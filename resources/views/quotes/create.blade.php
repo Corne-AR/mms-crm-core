@@ -23,6 +23,10 @@
             </div>
         </div>
     </div>
+	<!-- Button to launch product modal -->
+	<button type="button" class="btn btn-outline-success mb-3" data-bs-toggle="modal" data-bs-target="#productPickerModal">
+		<i class="bi bi-box-seam"></i> Add Product from Catalog
+	</button>
     <button type="button" class="btn btn-secondary mb-3" onclick="addQuoteItem()">Add Item</button>
     <button type="submit" class="btn btn-primary">Generate Quote</button>
 </form>
@@ -42,4 +46,9 @@ function addQuoteItem() {
     container.appendChild(row);
 }
 </script>
+
+@include('quotes.partials.product-picker')
+
+<script src="{{ asset('js/product-modal.js') }}"></script>
+
 @endsection
