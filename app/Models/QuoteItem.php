@@ -12,9 +12,11 @@ class QuoteItem extends Model
     protected $fillable = [
         'quote_id',
         'product_id',
+        'kit_id',
         'qty',
         'unit_price',
         'line_discount',
+        'line_total',
     ];
 
     protected $casts = [
@@ -40,10 +42,32 @@ class QuoteItem extends Model
     }
 
     /**
+     * The kit this item references.
+     */
+    public function kit()
+    {
+        return $this->belongsTo(Kit::class);
+    }
+
+    /**
      * Get the total price of this line (qty * unit_price - discount).
      */
     public function getLineTotalAttribute(): float
     {
         return max(0, ($this->qty * $this->unit_price) - $this->line_discount);
+    }
+
+    /**
+     * Get the display name for the item (product or kit name).
+     */
+    public function getDisplayNameAttribute()
+    {
+        if ($this->product) {
+            return $this->product->name;
+        } elseif ($this->kit) {
+            return '[Kit] ' . $this->kit->name;
+        } else {
+            return 'Unknown Item';
+        }
     }
 }

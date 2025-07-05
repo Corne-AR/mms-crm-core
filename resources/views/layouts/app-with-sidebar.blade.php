@@ -43,20 +43,33 @@
 <body>
     <div class="d-flex">
         <!-- Sidebar -->
-        <div :class="{'sidebar': true, 'position-fixed h-100 bg-dark text-white p-3': true, 'sidebar-closed': !sidebarOpen}">
-            <h5>{{ config('app.name') }}</h5>
-            <ul class="nav flex-column">
-                <li class="nav-item"><a class="nav-link text-white" href="{{ route('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-                <li class="nav-item d-flex justify-content-between align-items-center">
-                    <a class="nav-link text-white" href="{{ route('customers.index') }}"><i class="bi bi-people"></i> Customers</a>
-                    <span class="badge bg-danger">3</span>
-                </li>
-                <li class="nav-item d-flex justify-content-between align-items-center">
-                    <a class="nav-link text-white" href="{{ route('quotes.index') }}"><i class="bi bi-file-earmark-text"></i> Quotes</a>
-                    <span class="badge bg-primary">5</span>
-                </li>
-                <li class="nav-item"><a class="nav-link text-white" href="{{ route('invoices.index') }}"><i class="bi bi-receipt"></i> Invoices</a></li>
-            </ul>
+        <div :class="{'sidebar': true, 'position-fixed h-100 bg-dark text-white p-3': true, 'sidebar-closed': !sidebarOpen}" style="display: flex; flex-direction: column; height: 100vh;">
+            <div style="flex: 1 1 auto; display: flex; flex-direction: column;">
+                <h5>{{ config('app.name') }}</h5>
+                <ul class="nav flex-column mb-4">
+                    <li class="nav-item"><a class="nav-link text-white" href="{{ route('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                    <li class="nav-item d-flex justify-content-between align-items-center">
+                        <a class="nav-link text-white" href="{{ route('customers.index') }}"><i class="bi bi-people"></i> Customers</a>
+                        <span class="badge bg-danger">3</span>
+                    </li>
+                    <li class="nav-item d-flex justify-content-between align-items-center">
+                        <a class="nav-link text-white" href="{{ route('quotes.index') }}"><i class="bi bi-file-earmark-text"></i> Quotes</a>
+                        <span class="badge bg-primary">5</span>
+                    </li>
+                    <li class="nav-item"><a class="nav-link text-white" href="{{ route('invoices.index') }}"><i class="bi bi-receipt"></i> Invoices</a></li>
+                </ul>
+                <div class="mt-auto">
+                    <div class="border-top pt-3">
+                        <span class="text-uppercase text-secondary small">Admin</span>
+                        <ul class="nav flex-column">
+                            <li class="nav-item"><a class="nav-link text-warning" href="{{ route('users.index') }}"><i class="bi bi-people"></i> Users</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="pt-3 border-top text-center small text-secondary" style="background: rgba(0,0,0,0.05);">
+                <i class="bi bi-person-circle"></i> Signed in as <span class="fw-bold">{{ Auth::user()->name ?? 'Guest' }}</span>
+            </div>
         </div>
 
         <!-- Main Content -->

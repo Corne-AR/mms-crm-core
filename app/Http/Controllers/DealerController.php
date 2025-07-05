@@ -56,17 +56,16 @@ class DealerController extends Controller
     {
         $validated = $request->validate([
             'dealer_name' => 'required|string|max:255',
+            'type' => 'required|string|max:255',
             'contact_person' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
-            'phone' => 'nullable|string|max:50',
+            'phone' => 'nullable|string|max:255',
             'address' => 'nullable|string',
             'bank_details' => 'nullable|string',
-            'type' => 'nullable|string|max:50',
-            'logo' => 'nullable|string',
+            'logo_path' => 'nullable|string',
         ]);
-
         $dealer->update($validated);
-        return redirect()->route('dealers.index')->with('success', 'Dealer updated successfully.');
+        return redirect()->route('dealers.index')->with('status', 'Dealer updated successfully!');
     }
 
     public function destroy(Dealer $dealer)

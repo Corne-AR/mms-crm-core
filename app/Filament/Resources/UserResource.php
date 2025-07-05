@@ -101,7 +101,9 @@ class UserResource extends Resource
                 ->label('Dealer')
                 ->relationship('dealer', 'dealer_name')
                 ->searchable()
-                ->required(),
+                ->preload()
+                ->required(fn ($get) => $get('role') !== 'admin')
+                ->nullable(),
 
             Select::make('role')
                 ->options([
