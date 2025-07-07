@@ -1,7 +1,7 @@
 @extends('layouts.app-with-sidebar')
 
 @section('content')
-<h1 class="mb-4">Create Quote</h1>
+<h1 class="mb-4 bg-mms-navy p-3 rounded">Create Quote</h1>
 @include('partials.alerts')
 <form method="POST" action="{{ route('quotes.store') }}">
     @csrf
@@ -71,7 +71,7 @@
         <label class="form-label">Total</label>
         <input type="text" id="total" class="form-control" readonly>
     </div>
-    <button type="submit" class="btn btn-primary">Generate Quote</button>
+    <button type="submit" class="btn bg-mms-green text-white">Generate Quote</button>
 </form>
 
 <script>

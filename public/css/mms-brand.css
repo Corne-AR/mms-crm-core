@@ -63,3 +63,13 @@ a {
 a:hover {
   color: var(--dark-green-hover);
 }
+
+.bg-mms-navy {
+  background-color: #002147 !important;
+  color: #fff !important;
+}
+
+.bg-mms-green {
+  background-color: var(--primary-green) !important;
+  color: #fff !important;
+}

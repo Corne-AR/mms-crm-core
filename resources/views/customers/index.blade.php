@@ -1,7 +1,7 @@
 @extends('layouts.app-with-sidebar')
 
 @section('content')
-<h1 class="mb-4">Customers</h1>
+<h1 class="mb-4 bg-mms-navy p-3 rounded">Customers</h1>
 @include('partials.alerts')
 <div class="table-responsive">
     <table class="table table-striped">

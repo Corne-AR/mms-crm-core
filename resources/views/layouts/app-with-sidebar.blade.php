@@ -1,99 +1,56 @@
+<!-- resources/views/layouts/app-with-sidebar.blade.php -->
 <!DOCTYPE html>
-<html lang="en" x-data="{ sidebarOpen: true, darkMode: false }" :class="{ 'dark': darkMode }">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ config('app.name', 'MMS Design CRM') }}</title>
-
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <title>MMS Design CRM</title>
+    <link href="{{ asset('css/app.css') }}" rel="stylesheet">
     <link href="{{ asset('css/mms-brand.css') }}" rel="stylesheet">
-    <script src="https://unpkg.com/alpinejs" defer></script>
-
-    <style>
-        body {
-            font-family: 'Open Sans', sans-serif;
-        }
-        .sidebar {
-            width: 250px;
-            transition: transform 0.3s ease;
-        }
-        .sidebar-closed {
-            transform: translateX(-100%);
-        }
-        .content {
-            margin-left: 250px;
-            transition: margin-left 0.3s ease;
-        }
-        .content-expanded {
-            margin-left: 0;
-        }
-        .dark body {
-            background-color: #1e1e1e;
-            color: #f0f0f0;
-        }
-        .dark .sidebar {
-            background-color: #2b2b2b;
-        }
-        .dark .content {
-            background-color: #1e1e1e;
-        }
-    </style>
+    <script src="{{ asset('js/app.js') }}" defer></script>
 </head>
-<body>
-    <div class="d-flex">
-        <!-- Sidebar -->
-        <div :class="{'sidebar': true, 'position-fixed h-100 bg-dark text-white p-3': true, 'sidebar-closed': !sidebarOpen}" style="display: flex; flex-direction: column; height: 100vh;">
-            <div style="flex: 1 1 auto; display: flex; flex-direction: column;">
-                <h5>{{ config('app.name') }}</h5>
-                <ul class="nav flex-column mb-4">
-                    <li class="nav-item"><a class="nav-link text-white" href="{{ route('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-                    <li class="nav-item d-flex justify-content-between align-items-center">
-                        <a class="nav-link text-white" href="{{ route('customers.index') }}"><i class="bi bi-people"></i> Customers</a>
-                        <span class="badge bg-danger">3</span>
-                    </li>
-                    <li class="nav-item d-flex justify-content-between align-items-center">
-                        <a class="nav-link text-white" href="{{ route('quotes.index') }}"><i class="bi bi-file-earmark-text"></i> Quotes</a>
-                        <span class="badge bg-primary">5</span>
-                    </li>
-                    <li class="nav-item"><a class="nav-link text-white" href="{{ route('invoices.index') }}"><i class="bi bi-receipt"></i> Invoices</a></li>
-                </ul>
-                <div class="mt-auto">
-                    <div class="border-top pt-3">
-                        <span class="text-uppercase text-secondary small">Admin</span>
-                        <ul class="nav flex-column">
-                            <li class="nav-item"><a class="nav-link text-warning" href="{{ route('users.index') }}"><i class="bi bi-people"></i> Users</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            <div class="pt-3 border-top text-center small text-secondary" style="background: rgba(0,0,0,0.05);">
-                <i class="bi bi-person-circle"></i> Signed in as <span class="fw-bold">{{ Auth::user()->name ?? 'Guest' }}</span>
-            </div>
+<body class="d-flex">
+
+    <!-- Sidebar -->
+    <div class="d-flex flex-column vh-100 bg-dark text-white" style="width: 250px;">
+        <div class="p-3 flex-grow-1 overflow-auto">
+            <h4 class="text-white text-center">MMS Design CRM</h4>
+            <ul class="nav flex-column mt-4">
+                <li class="nav-item"><a href="{{ route('dashboard') }}" class="nav-link text-white">Dashboard</a></li>
+                <li class="nav-item"><a href="{{ route('customers.index') }}" class="nav-link text-white">Customers</a></li>
+                <li class="nav-item"><a href="{{ route('dealers.index') }}" class="nav-link text-white">Dealers</a></li>
+                <li class="nav-item"><a href="{{ route('quotes.index') }}" class="nav-link text-white">Quotes</a></li>
+                
+                @can('view-admin')
+                <hr class="text-secondary">
+                <li class="nav-item"><strong class="text-uppercase small text-muted px-3">Admin</strong></li>
+                <li class="nav-item"><a href="{{ route('users.index') }}" class="nav-link text-white">Users</a></li>
+                @endcan
+            </ul>
         </div>
 
-        <!-- Main Content -->
-        <div :class="{'content': true, 'content-expanded': !sidebarOpen}" class="flex-grow-1">
-            <nav class="navbar navbar-light bg-light border-bottom px-3">
-                <button class="btn btn-outline-success btn-sm me-2" @click="sidebarOpen = !sidebarOpen">
-                    <i class="bi bi-list"></i>
-                </button>
-                <button class="btn btn-outline-dark btn-sm" @click="darkMode = !darkMode">
-                    <i class="bi bi-moon-stars"></i>
-                </button>
-                <span class="ms-auto">Logged in as {{ Auth::user()->name ?? 'Guest' }}</span>
-            </nav>
-            <main class="p-4">
-                @if (session('status'))
-                    <div class="alert alert-success">{{ session('status') }}</div>
-                @endif
-                @if (session('error'))
-                    <div class="alert alert-danger">{{ session('error') }}</div>
-                @endif
-
-                @yield('content')
-            </main>
+        <!-- Footer pinned -->
+        <div class="p-3 border-top border-secondary text-center">
+            @auth
+                <div class="small text-white-50 mb-2">
+                    Signed in as:<br>
+                    <strong>{{ auth()->user()->name }}</strong>
+                </div>
+                <a href="{{ route('logout') }}"
+                   onclick="event.preventDefault(); document.getElementById('logout-form').submit();"
+                   class="btn btn-outline-light btn-sm w-100 mb-1">Sign Out</a>
+                <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
+                    @csrf
+                </form>
+            @else
+                <a href="{{ route('login') }}" class="btn btn-outline-light btn-sm w-100">Sign In</a>
+            @endauth
         </div>
     </div>
+
+    <!-- Main Content -->
+    <div class="flex-grow-1 p-4">
+        @yield('content')
+    </div>
+
 </body>
 </html>

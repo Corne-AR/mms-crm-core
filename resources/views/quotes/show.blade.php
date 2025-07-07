@@ -1,7 +1,7 @@
 @extends('layouts.app-with-sidebar')
 
 @section('content')
-<h1 class="mb-4">Quote #{{ $quote->quote_number }}</h1>
+<h1 class="mb-4 bg-mms-navy p-3 rounded">Quote #{{ $quote->quote_number }}</h1>
 @include('partials.alerts')
 
 <div class="mb-3">
